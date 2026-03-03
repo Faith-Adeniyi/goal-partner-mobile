@@ -16,6 +16,29 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+3. Configure API base URL for local development
+
+   This app uses the following precedence:
+
+   1. `EXPO_PUBLIC_API_BASE_URL`
+   2. `expo.extra.apiBaseUrl` in `app.json`
+   3. Expo host-derived LAN fallback
+   4. Localhost fallback
+
+   Recommended values:
+
+   - Android emulator: `http://10.0.2.2:8000`
+   - Physical device on LAN: `http://<YOUR_PC_LAN_IP>:8000`
+   - iOS simulator/web localhost: `http://127.0.0.1:8000`
+
+4. Backend host
+
+   Run FastAPI with LAN-accessible host:
+
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
