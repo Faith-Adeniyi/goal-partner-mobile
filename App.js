@@ -77,9 +77,9 @@ function MainTabs() {
         options={{ tabBarLabel: 'Goals', tabBarIcon: tabIcon('flag-outline') }}
       />
       <Tab.Screen
-        name="Coach"
+        name="Allison"
         component={ChatScreen}
-        options={{ tabBarLabel: 'Coach', tabBarIcon: tabIcon('chatbubble-ellipses-outline') }}
+        options={{ tabBarLabel: 'Allison', tabBarIcon: tabIcon('sparkles-outline') }}
       />
       <Tab.Screen
         name="Insights"

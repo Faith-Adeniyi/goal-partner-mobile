@@ -4,14 +4,14 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { fetchActiveGoals, fetchGoalDetails, submitDailyCheckin } from '../api/client';
 import {
-    AppButton,
-    AppScreen,
-    Card,
-    Chip,
-    EmptyState,
-    ErrorState,
-    ProgressBar,
-    ScreenHeader,
+  AppButton,
+  AppScreen,
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  ProgressBar,
+  ScreenHeader,
 } from '../ui/components';
 import { useAppTheme } from '../ui/hooks/useAppTheme';
 
@@ -147,10 +147,10 @@ export default function TodayScreen({ navigation }) {
   if (!loading && goals.length === 0) {
     return (
       <AppScreen>
-        <EmptyState
-          title="No quests yet"
-          message="Your next win starts with your first goal. Head to Coach and ask for a starter plan."
-        />
+          <EmptyState
+            title="No quests yet"
+            message="Your next win starts with your first goal. Head to Allison and ask for a starter plan."
+          />
       </AppScreen>
     );
   }
@@ -267,10 +267,10 @@ export default function TodayScreen({ navigation }) {
                   onPress={() => navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoal.plan_id } })}
                 />
                 <AppButton
-                  label="Ask Coach"
+                  label="Ask Allison"
                   variant="secondary"
                   style={{ flex: 1 }}
-                  onPress={() => navigation.navigate('Coach')}
+                  onPress={() => navigation.navigate('Allison')}
                 />
               </View>
             </View>
@@ -351,7 +351,7 @@ export default function TodayScreen({ navigation }) {
 
         <Card variant="outlined" style={{ marginTop: spacing.md }}>
           <View style={styles.sectionHeader}>
-            <Text style={[typography.h3, { color: colors.text }]}>Fast Coach prompts</Text>
+            <Text style={[typography.h3, { color: colors.text }]}>Fast Allison prompts</Text>
             <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
               Tap one. Don’t overthink it.
             </Text>
@@ -359,9 +359,9 @@ export default function TodayScreen({ navigation }) {
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
             {[
-              { icon: 'git-branch-outline', label: 'Break down', to: 'Coach' },
-              { icon: 'calendar-outline', label: 'Plan today', to: 'Coach' },
-              { icon: 'flash-outline', label: 'Boost me', to: 'Coach' },
+              { icon: 'git-branch-outline', label: 'Break down', to: 'Allison' },
+              { icon: 'calendar-outline', label: 'Plan today', to: 'Allison' },
+              { icon: 'flash-outline', label: 'Boost me', to: 'Allison' },
               { icon: 'trophy-outline', label: 'Review week', to: 'Insights' },
             ].map((item) => (
               <TouchableOpacity

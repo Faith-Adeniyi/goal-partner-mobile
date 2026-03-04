@@ -4,35 +4,57 @@ import { createElevation, motion, radius, spacing } from '../ui/foundation/token
 import { typography } from '../ui/foundation/typography';
 
 const lightColors = {
-  background: '#f3f6fb',
-  surface: '#ffffff',
-  surfaceMuted: '#eef3fb',
-  text: '#102033',
-  textMuted: '#5b6b7c',
-  accent: '#1f7ae0',
-  accentMuted: '#d8e7fb',
-  accentSoft: 'rgba(31, 122, 224, 0.12)',
-  border: '#d4deea',
-  success: '#0e9f6e',
-  danger: '#d14343',
-  warning: '#cc8a00',
+  background: '#F6F8FF',
+  surface: '#FFFFFF',
+  surfaceMuted: '#EEF3FF',
+
+  text: '#0E1A2B',
+  textMuted: '#5A6B80',
+
+  // Brand: playful, high-contrast, Duolingo-ish
+  accent: '#4C6FFF',
+  accentMuted: '#DDE3FF',
+  accentSoft: 'rgba(76, 111, 255, 0.14)',
+
+  // Secondary accents for “alive” UI
+  mint: '#22C55E',
+  mintSoft: 'rgba(34, 197, 94, 0.14)',
+  amber: '#F59E0B',
+  amberSoft: 'rgba(245, 158, 11, 0.14)',
+  pink: '#EC4899',
+  pinkSoft: 'rgba(236, 72, 153, 0.14)',
+
+  border: '#D8E0F0',
+  success: '#22C55E',
+  danger: '#EF4444',
+  warning: '#F59E0B',
   overlay: 'rgba(9, 16, 24, 0.5)',
 };
 
 const darkColors = {
-  background: '#0c1522',
-  surface: '#111f33',
-  surfaceMuted: '#172a42',
-  text: '#eef5ff',
-  textMuted: '#a2b5cf',
-  accent: '#5ea2ff',
-  accentMuted: '#1a3560',
-  accentSoft: 'rgba(94, 162, 255, 0.18)',
-  border: '#274261',
-  success: '#2bc48a',
-  danger: '#ff7575',
-  warning: '#ffb74a',
-  overlay: 'rgba(1, 5, 10, 0.65)',
+  background: '#08101C',
+  surface: '#0E1A2B',
+  surfaceMuted: '#14243B',
+
+  text: '#EAF1FF',
+  textMuted: '#A8B7D1',
+
+  accent: '#6B8CFF',
+  accentMuted: '#1C3166',
+  accentSoft: 'rgba(107, 140, 255, 0.18)',
+
+  mint: '#34D399',
+  mintSoft: 'rgba(52, 211, 153, 0.18)',
+  amber: '#FBBF24',
+  amberSoft: 'rgba(251, 191, 36, 0.18)',
+  pink: '#F472B6',
+  pinkSoft: 'rgba(244, 114, 182, 0.18)',
+
+  border: '#20365B',
+  success: '#34D399',
+  danger: '#FB7185',
+  warning: '#FBBF24',
+  overlay: 'rgba(1, 5, 10, 0.68)',
 };
 
 const buildTheme = (colors, isDark) => {
@@ -46,7 +68,11 @@ const buildTheme = (colors, isDark) => {
     elevation,
     motion,
     gradients: {
-      background: isDark ? ['#0c1522', '#10263d'] : ['#f3f6fb', '#e9f0fa'],
+      background: isDark ? ['#08101C', '#14243B'] : ['#F6F8FF', '#EEF3FF'],
+      hero: isDark ? ['#14243B', '#0E1A2B'] : ['#FFFFFF', '#EEF3FF'],
+      accent: isDark ? ['#6B8CFF', '#4C6FFF'] : ['#4C6FFF', '#6B8CFF'],
+      success: isDark ? ['#34D399', '#22C55E'] : ['#22C55E', '#34D399'],
+      candy: isDark ? ['#F472B6', '#6B8CFF'] : ['#EC4899', '#4C6FFF'],
     },
 
     // Backwards-compatible aliases for current code paths.

@@ -24,14 +24,19 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeGoalId, setActiveGoalId] = useState('general');
+  const [mode, setMode] = useState('assistant');
   const [lastSendPayload, setLastSendPayload] = useState(null);
 
   const quickPrompts = [
+    { id: 'plan', label: 'Build me a plan', text: 'Help me build a goal plan. Ask me questions one by one, then produce milestones, tasks, and a timeline.' },
+    { id: 'today', label: 'Plan today', text: 'Help me choose the best next task for today based on my goals.' },
     { id: 'breakdown', label: 'Break into steps', text: 'Break this into the smallest next steps.' },
-    { id: 'today', label: 'Plan today', text: 'Help me pick the best next task for today.' },
     { id: 'blockers', label: 'Unblock me', text: "I'm stuck. Ask me 3 questions then suggest 1 next action." },
-    { id: 'review', label: 'Weekly review', text: 'Give me a short weekly review and the next 3 priorities.' },
+  ];
+
+  const modeChips = [
+    { id: 'assistant', label: 'Assistant' },
+    { id: 'plan_builder', label: 'Plan Builder' },
   ];
 
   const handleSend = async (overrideText = null) => {
@@ -44,9 +49,14 @@ export default function ChatScreen() {
     setLoading(true);
     setError('');
 
-    setLastSendPayload({ text: outgoingText, goalId: activeGoalId });
+    setLastSendPayload({ text: outgoingText });
 
-    const response = await sendChatMessage(outgoingText, activeGoalId);
+    const modePrefix =
+      mode === 'plan_builder'
+        ? "PLAN BUILDER MODE: Ask 5-10 smart questions (one at a time). Then output a structured plan with milestones, tasks, and a realistic timeline. Tone: kind, disciplined, non-robotic.\\n\\n"
+        : '';
+
+    const response = await sendChatMessage(`${modePrefix}${outgoingText}`, 'general');
     setLoading(false);
 
     if (response.success) {
@@ -82,45 +92,35 @@ export default function ChatScreen() {
   return (
     <AppScreen padded={false} keyboardAware>
       <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
-        <ScreenHeader title="Coach chat" subtitle="Ask for help with your next step..." compact />
+        <ScreenHeader title="Allison" subtitle="Your AI assistant for planning + execution." compact />
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: spacing.xl }}>
         <Card variant="outlined" style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
           <View style={styles.goalRow}>
-            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Chat context</Text>
+            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Mode</Text>
             <View style={styles.goalPills}>
-              <TouchableOpacity
-                onPress={() => setActiveGoalId('general')}
-                style={[
-                  styles.goalPill,
-                  {
-                    borderColor: activeGoalId === 'general' ? colors.accent : colors.border,
-                    backgroundColor: activeGoalId === 'general' ? colors.accentSoft : colors.surface,
-                    borderRadius: radius.pill,
-                  },
-                ]}
-              >
-                <Text style={[typography.bodySmall, { color: activeGoalId === 'general' ? colors.accent : colors.text }]}>
-                  General
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setActiveGoalId('demo')}
-                style={[
-                  styles.goalPill,
-                  {
-                    borderColor: activeGoalId === 'demo' ? colors.accent : colors.border,
-                    backgroundColor: activeGoalId === 'demo' ? colors.accentSoft : colors.surface,
-                    borderRadius: radius.pill,
-                  },
-                ]}
-              >
-                <Text style={[typography.bodySmall, { color: activeGoalId === 'demo' ? colors.accent : colors.text }]}>
-                  Demo goal
-                </Text>
-              </TouchableOpacity>
+              {modeChips.map((chip) => {
+                const selected = mode === chip.id;
+                return (
+                  <TouchableOpacity
+                    key={chip.id}
+                    onPress={() => setMode(chip.id)}
+                    style={[
+                      styles.goalPill,
+                      {
+                        borderColor: selected ? colors.accent : colors.border,
+                        backgroundColor: selected ? colors.accentSoft : colors.surface,
+                        borderRadius: radius.pill,
+                      },
+                    ]}
+                  >
+                    <Text style={[typography.bodySmall, { color: selected ? colors.accent : colors.text }]}>
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -148,8 +148,8 @@ export default function ChatScreen() {
 
         {messages.length === 0 ? (
           <EmptyState
-            title="Start your coaching chat"
-            message="Share what you want to do today and Allison will help break it down."
+            title="Talk to Allison"
+            message="Tell me your goal in one sentence, and I’ll help you turn it into a plan you can actually execute."
           />
         ) : (
           <FlatList
@@ -168,7 +168,7 @@ export default function ChatScreen() {
             <AppInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Ask for help with your next step..."
+              placeholder={mode === 'plan_builder' ? 'Describe your goal in one sentence...' : 'Ask Allison anything...'}
               autoCapitalize="sentences"
               returnKeyType="send"
               onSubmitEditing={handleSend}

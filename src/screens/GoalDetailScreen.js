@@ -281,7 +281,7 @@ export default function GoalDetailScreen({ route, navigation }) {
           },
         ]}
       >
-        <Ionicons name="chatbubbles-outline" size={22} color="#ffffff" />
+        <Ionicons name="school-outline" size={22} color="#ffffff" />
       </TouchableOpacity>
 
       <Modal
@@ -308,7 +308,7 @@ export default function GoalDetailScreen({ route, navigation }) {
           >
             <View style={styles.modalHeader}>
               <View style={[styles.dragHandle, { backgroundColor: colors.textMuted }]} />
-              <Text style={[typography.h3, { color: colors.text, marginTop: spacing.sm }]}>Daily Coach</Text>
+              <Text style={[typography.h3, { color: colors.text, marginTop: spacing.sm }]}>Goal Coach</Text>
             </View>
 
             <Card variant="default" style={{ marginHorizontal: spacing.xl, marginBottom: spacing.md }}>
@@ -331,18 +331,21 @@ export default function GoalDetailScreen({ route, navigation }) {
               </View>
               <View style={[styles.quickButtons, { marginTop: spacing.md }]}>
                 <AppButton
-                  label="I'm on track"
+                  label="Next step"
                   style={{ flex: 1 }}
-                  onPress={async () => {
-                    await handleDailyCheckin({
-                      workedToday: true,
-                      notes: 'On track today.',
-                    });
-                    handleSendCoachMessage("I'm on track today.");
+                  onPress={() => {
+                    const nextTaskTitle =
+                      activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
+
+                    const prompt = nextTaskTitle
+                      ? `Coach me on the next task: "${nextTaskTitle}". Break it down into the smallest steps and tell me exactly what to do first.`
+                      : "Coach me: help me pick the best next task and tell me what to do first.";
+
+                    handleSendCoachMessage(prompt);
                   }}
                 />
                 <AppButton
-                  label="I'm stuck"
+                  label="I’m stuck"
                   variant="secondary"
                   style={{ flex: 1 }}
                   onPress={async () => {
@@ -350,7 +353,15 @@ export default function GoalDetailScreen({ route, navigation }) {
                       workedToday: false,
                       blockers: "I'm stuck.",
                     });
-                    setCoachInput("I'm stuck because ");
+
+                    const nextTaskTitle =
+                      activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
+
+                    setCoachInput(
+                      nextTaskTitle
+                        ? `I’m stuck on "${nextTaskTitle}" because `
+                        : "I’m stuck because "
+                    );
                   }}
                 />
               </View>
@@ -417,7 +428,7 @@ export default function GoalDetailScreen({ route, navigation }) {
               <TextInput
                 value={coachInput}
                 onChangeText={setCoachInput}
-                placeholder="Share your next step..."
+                placeholder="Describe the task you're working on (or what’s blocking you)..."
                 placeholderTextColor={colors.textMuted}
                 style={[
                   styles.textInput,
