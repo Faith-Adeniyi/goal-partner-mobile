@@ -10,9 +10,11 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import ChatScreen from './src/screens/ChatScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import GoalDetailScreen from './src/screens/GoalDetailScreen';
+import InsightsScreen from './src/screens/InsightsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import TodayScreen from './src/screens/TodayScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
@@ -65,6 +67,11 @@ function MainTabs() {
       }}
     >
       <Tab.Screen
+        name="Today"
+        component={TodayScreen}
+        options={{ tabBarLabel: 'Today', tabBarIcon: tabIcon('flash-outline') }}
+      />
+      <Tab.Screen
         name="Goals"
         component={GoalsStackNavigator}
         options={{ tabBarLabel: 'Goals', tabBarIcon: tabIcon('flag-outline') }}
@@ -74,7 +81,12 @@ function MainTabs() {
         component={ChatScreen}
         options={{ tabBarLabel: 'Coach', tabBarIcon: tabIcon('chatbubble-ellipses-outline') }}
       />
-      <Tab.Screen name="You" options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('person-outline') }}>
+      <Tab.Screen
+        name="Insights"
+        component={InsightsScreen}
+        options={{ tabBarLabel: 'Insights', tabBarIcon: tabIcon('bar-chart-outline') }}
+      />
+      <Tab.Screen name="You" options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('happy-outline') }}>
         {(props) => <ProfileScreen {...props} onSignOut={signOut} />}
       </Tab.Screen>
     </Tab.Navigator>

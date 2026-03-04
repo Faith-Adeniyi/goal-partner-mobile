@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   getMe,
@@ -7,6 +6,7 @@ import {
   setUnauthorizedHandler,
   signUp,
 } from '../api/client';
+import * as secureStore from '../storage/secureStore';
 
 const TOKEN_KEY = 'allison_access_token';
 
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     setAuthToken(null);
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await secureStore.deleteItemAsync(TOKEN_KEY);
   }, []);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const bootstrap = async () => {
       setIsBootstrapping(true);
-      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      const savedToken = await secureStore.getItemAsync(TOKEN_KEY);
       if (!savedToken) {
         setIsBootstrapping(false);
         return;
@@ -74,7 +74,7 @@ export function AuthProvider({ children }) {
     setAuthToken(accessToken);
     setToken(accessToken);
     setUser(currentUser);
-    await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
+    await secureStore.setItemAsync(TOKEN_KEY, accessToken);
     return { success: true, data: currentUser, error: null };
   }, []);
 
