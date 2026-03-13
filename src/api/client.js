@@ -35,6 +35,10 @@ const buildBaseUrlCandidates = () => {
     if (normalized && !urls.includes(normalized)) urls.push(normalized);
   };
 
+  // Prefer explicit app.json config first (works for physical devices too)
+  pushCandidate(appExtraUrl);
+
+  // Then environment override (useful for CI / local overrides)
   pushCandidate(envUrl);
 
   if (expoHostUri) {
@@ -44,12 +48,11 @@ const buildBaseUrlCandidates = () => {
     }
   }
 
-  pushCandidate(appExtraUrl);
-
   if (Platform.OS === 'android') {
     pushCandidate('http://10.0.2.2:8000');
   }
 
+  // Only useful for web / local dev; physical devices won't reach your PC with localhost/127.
   pushCandidate('http://127.0.0.1:8000');
   pushCandidate('http://localhost:8000');
 
@@ -57,13 +60,25 @@ const buildBaseUrlCandidates = () => {
 };
 
 const baseUrlCandidates = buildBaseUrlCandidates();
-let activeBaseUrl = baseUrlCandidates[0] || 'http://127.0.0.1:8000';
+
+// HARD REQUIREMENT: if app.json sets extra.apiBaseUrl, we must use it (physical devices can't use localhost).
+const configuredBaseUrl = normalizeBaseUrl(Constants.expoConfig?.extra?.apiBaseUrl);
+let activeBaseUrl = configuredBaseUrl || baseUrlCandidates[0] || 'http://127.0.0.1:8000';
+
+if (!configuredBaseUrl) {
+  console.warn(
+    '[api] Missing Constants.expoConfig.extra.apiBaseUrl; physical devices will not reach localhost/127. Check app.json and restart Expo.'
+  );
+}
+
+export const getActiveBaseUrl = () => activeBaseUrl;
 
 const apiClient = axios.create({
   baseURL: activeBaseUrl,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
+
 
 const setActiveBaseUrl = (baseUrl) => {
   const normalized = normalizeBaseUrl(baseUrl);
@@ -197,13 +212,27 @@ export const submitDailyCheckin = async (planId, checkinData) => {
   }
 };
 
-export const sendChatMessage = async (messageText, goalId) => {
+export const sendChatMessage = async (messageInput, goalId) => {
+  const normalizedPayload =
+    typeof messageInput === 'string'
+      ? {
+          goal_id: goalId || 'general',
+          message: messageInput.trim(),
+        }
+      : {
+          goal_id: messageInput?.goalId || 'general',
+          message: (messageInput?.message || '').trim(),
+          mode: messageInput?.mode || 'assistant',
+          chat_history: Array.isArray(messageInput?.history) ? messageInput.history : [],
+        };
+
+  if (!normalizedPayload.message) {
+    return { success: false, data: null, error: 'Please enter a message first.' };
+  }
+
   try {
     const response = await requestWithFallback(() =>
-      apiClient.post('/chat', {
-        goal_id: goalId || 'general',
-        message: messageText,
-      })
+      apiClient.post('/chat', normalizedPayload)
     );
     return toSuccess(response.data);
   } catch (error) {
@@ -230,6 +259,85 @@ export const fetchGoalDetails = async (planId) => {
     return toSuccess(response.data);
   } catch (error) {
     return toFailure(error, 'Failed to load goal details.');
+  }
+};
+
+export const deleteGoal = async (planId) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.delete(`/goals/${planId}`)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to delete goal.');
+  }
+};
+
+export const fetchGoalStreak = async (planId) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.get(`/goals/${planId}/streak`)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to load streak.');
+  }
+};
+
+export const updateGoalMeta = async (planId, meta) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.patch(`/goals/${planId}/meta`, meta)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to update goal.');
+  }
+};
+
+export const addMilestoneTask = async (planId, milestoneId, payload) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.post(`/goals/${planId}/milestones/${milestoneId}/tasks`, payload)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to add task.');
+  }
+};
+
+export const updateMilestoneTask = async (planId, milestoneId, taskId, payload) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.patch(`/goals/${planId}/milestones/${milestoneId}/tasks/${taskId}`, payload)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to update task.');
+  }
+};
+
+export const deleteMilestoneTask = async (planId, milestoneId, taskId) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.delete(`/goals/${planId}/milestones/${milestoneId}/tasks/${taskId}`)
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to delete task.');
+  }
+};
+
+export const reorderMilestoneTasks = async (planId, milestoneId, orderedTaskIds) => {
+  try {
+    const response = await requestWithFallback(() =>
+      apiClient.post(`/goals/${planId}/milestones/${milestoneId}/tasks/reorder`, {
+        ordered_task_ids: orderedTaskIds,
+      })
+    );
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Failed to reorder tasks.');
   }
 };
 

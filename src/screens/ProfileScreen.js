@@ -10,7 +10,7 @@ import {
 } from '../ui/components';
 import { useAppTheme } from '../ui/hooks/useAppTheme';
 
-export default function ProfileScreen({ onSignOut }) {
+export default function ProfileScreen({ onSignOut, navigation }) {
   const { colors, spacing, typography, toggleTheme, isDark, radius } = useAppTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
@@ -39,6 +39,16 @@ export default function ProfileScreen({ onSignOut }) {
             </Text>
           </View>
         </View>
+      </Card>
+
+      <Card variant="outlined" style={{ marginBottom: spacing.lg }}>
+        <ListItemRow
+          title="Personalisation"
+          subtitle="Theme colors"
+          icon={<Ionicons name="color-palette-outline" size={20} color={colors.accent} />}
+          onPress={() => navigation.navigate('Personalisation')}
+          trailing={<Ionicons name="chevron-forward-outline" size={18} color={colors.textMuted} />}
+        />
       </Card>
 
       <View style={{ gap: spacing.sm }}>

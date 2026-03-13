@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,12 +14,14 @@ import {
   View,
 } from 'react-native';
 import {
+  deleteGoal,
   fetchGoalDetails,
   sendCoachMessage,
   submitDailyCheckin,
-  toggleTaskStatus,
+  toggleTaskStatus
 } from '../api/client';
 import ClockRailMap from '../components/ClockRailMap';
+import * as secureStore from '../storage/secureStore';
 import {
   AppButton,
   AppScreen,
@@ -42,9 +45,11 @@ export default function GoalDetailScreen({ route, navigation }) {
   const [viewMode, setViewMode] = useState('checklist');
   const [activePhaseId, setActivePhaseId] = useState(null);
 
+
   const [isCoachModalVisible, setCoachModalVisible] = useState(false);
   const [selectedEnergy, setSelectedEnergy] = useState('steady');
   const [coachInput, setCoachInput] = useState('');
+  const [showCoachTools, setShowCoachTools] = useState(false);
   const [coachMessages, setCoachMessages] = useState([
     { id: 'bootstrap', sender: 'ai', text: "How are you feeling today, and what's your top priority?" },
   ]);
@@ -66,6 +71,7 @@ export default function GoalDetailScreen({ route, navigation }) {
 
     const payload = response.data?.data || null;
     setGoalData(payload);
+
     setLoading(false);
 
     const milestones = payload?.milestones?.filter(Boolean) || [];
@@ -80,11 +86,45 @@ export default function GoalDetailScreen({ route, navigation }) {
     loadGoalData();
   }, [loadGoalData]);
 
+  const extractStreakSnapshot = (payload) => {
+    if (!payload) return null;
+    // `response` is our wrapper: { success, data }, where `data` is axios `response.data`.
+    // Backend nesting has been inconsistent across endpoints, so we check multiple shapes.
+    return (
+      payload?.data?.streak ||
+      payload?.streak ||
+      payload?.data?.data?.streak ||
+      payload?.data?.data ||
+      payload?.data ||
+      null
+    );
+  };
+
   const handleToggleTask = async (milestoneId, taskId) => {
     if (!milestoneId || !taskId) return;
     const response = await toggleTaskStatus(planId, milestoneId, taskId);
     if (response.success) {
-      loadGoalData();
+      await loadGoalData();
+
+      // If backend returns streak snapshot on toggle, cache it so Today can render immediately.
+      const returnedStreak = extractStreakSnapshot(response);
+      if (returnedStreak && typeof returnedStreak === 'object') {
+        try {
+          await secureStore.mergeJsonItemAsync('allison_runtime_flags', {
+            lastTaskToggleAt: Date.now(),
+            lastKnownStreak: returnedStreak,
+          });
+        } catch (_e) {
+          // ignore
+        }
+      } else {
+        // Fallback: just trigger Today refresh on focus.
+        try {
+          await secureStore.mergeJsonItemAsync('allison_runtime_flags', { lastTaskToggleAt: Date.now() });
+        } catch (_e) {
+          // ignore
+        }
+      }
     }
   };
 
@@ -124,9 +164,30 @@ export default function GoalDetailScreen({ route, navigation }) {
       blockers,
       energy_level: selectedEnergy,
     });
-    if (!response.success) {
+
+    if (response.success) {
+      // Check-ins can also advance the streak, so cache snapshot if present.
+      const returnedStreak = extractStreakSnapshot(response);
+      if (returnedStreak && typeof returnedStreak === 'object') {
+        try {
+          await secureStore.mergeJsonItemAsync('allison_runtime_flags', {
+            lastTaskToggleAt: Date.now(),
+            lastKnownStreak: returnedStreak,
+          });
+        } catch (_e) {
+          // ignore
+        }
+      } else {
+        try {
+          await secureStore.mergeJsonItemAsync('allison_runtime_flags', { lastTaskToggleAt: Date.now() });
+        } catch (_e) {
+          // ignore
+        }
+      }
+    } else {
       setCheckinError(response.error || 'Failed to submit check-in.');
     }
+
     setIsSubmittingCheckin(false);
   };
 
@@ -155,6 +216,45 @@ export default function GoalDetailScreen({ route, navigation }) {
     </TouchableOpacity>
   );
 
+  const menuAction = (
+    <TouchableOpacity
+      onPress={() => {
+        Alert.alert('Goal options', 'Choose an action', [
+          {
+            text: 'Edit tasks',
+            onPress: () => navigation.navigate('Goals', { screen: 'EditTasks', params: { planId } }),
+          },
+          {
+            text: 'Delete goal',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert('Delete this goal?', 'This cannot be undone.', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const res = await deleteGoal(planId);
+                    if (res.success) {
+                      navigation.goBack();
+                      return;
+                    }
+                    Alert.alert('Failed', res.error || 'Could not delete goal.');
+                  },
+                },
+              ]);
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
+      }}
+      style={styles.iconBtn}
+      hitSlop={8}
+    >
+      <Ionicons name="ellipsis-vertical" size={20} color={colors.text} />
+    </TouchableOpacity>
+  );
+
   return (
     <AppScreen padded={false}>
       <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
@@ -162,7 +262,9 @@ export default function GoalDetailScreen({ route, navigation }) {
           title={goalData?.goal_summary || 'Goal details'}
           subtitle={goalData?.target_date ? `Target date: ${goalData.target_date}` : 'Stay focused on the next action.'}
           leftAction={backAction}
+          rightAction={menuAction}
         />
+
         <SegmentedControl
           options={[
             { label: 'Checklist', value: 'checklist' },
@@ -176,21 +278,33 @@ export default function GoalDetailScreen({ route, navigation }) {
 
       {viewMode === 'timeline' ? (
         <View style={{ flex: 1 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.md }}
+          <View
+            style={{
+              paddingHorizontal: spacing.xl,
+              paddingTop: spacing.xs,
+              paddingBottom: spacing.sm,
+              zIndex: 10,
+            }}
           >
-            {milestones.map((milestone) => (
-              <Chip
-                key={`phase-${milestone.id}`}
-                label={`Phase ${milestone.id}`}
-                selected={activePhaseId === milestone.id}
-                onPress={() => setActivePhaseId(milestone.id)}
-              />
-            ))}
-          </ScrollView>
-          <View style={{ flex: 1 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                gap: spacing.xs,
+              }}
+            >
+              {milestones.map((milestone) => (
+                <Chip
+                  key={`phase-${milestone.id}`}
+                  label={`Phase ${milestone.id}`}
+                  selected={activePhaseId === milestone.id}
+                  onPress={() => setActivePhaseId(milestone.id)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <ClockRailMap milestone={activeMilestoneData} onToggleTask={handleToggleTask} />
           </View>
         </View>
@@ -216,9 +330,16 @@ export default function GoalDetailScreen({ route, navigation }) {
                     }))
                   }
                 >
-                  <Text style={[typography.h3, { color: colors.text, flex: 1 }]}>
-                    Phase {milestone.id}: {milestone.title}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.h3, { color: colors.text }]}>
+                      Phase {milestone.id}: {milestone.title}
+                    </Text>
+                    {milestone.due_date ? (
+                      <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>
+                        Due: {milestone.due_date}
+                      </Text>
+                    ) : null}
+                  </View>
                   <Ionicons
                     name={isExpanded ? 'chevron-up-outline' : 'chevron-down-outline'}
                     size={18}
@@ -248,17 +369,27 @@ export default function GoalDetailScreen({ route, navigation }) {
                           >
                             {done ? <Ionicons name="checkmark" size={14} color="#ffffff" /> : null}
                           </View>
-                          <Text
-                            style={[
-                              typography.body,
-                              {
-                                color: done ? colors.textMuted : colors.text,
-                                textDecorationLine: done ? 'line-through' : 'none',
-                              },
-                            ]}
-                          >
-                            {task.title}
-                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                typography.body,
+                                {
+                                  color: done ? colors.textMuted : colors.text,
+                                  flexShrink: 1,
+                                  flexWrap: 'wrap',
+                                },
+                              ]}
+                              numberOfLines={3}
+                              ellipsizeMode="tail"
+                            >
+                              {task.title}
+                            </Text>
+                            {task.due_date ? (
+                              <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>
+                                Due: {task.due_date}
+                              </Text>
+                            ) : null}
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -311,76 +442,98 @@ export default function GoalDetailScreen({ route, navigation }) {
               <Text style={[typography.h3, { color: colors.text, marginTop: spacing.sm }]}>Goal Coach</Text>
             </View>
 
-            <Card variant="default" style={{ marginHorizontal: spacing.xl, marginBottom: spacing.md }}>
-              <Text style={[typography.label, { color: colors.text, marginBottom: spacing.sm }]}>
-                Energy level
-              </Text>
-              <View style={styles.energyRow}>
-                {[
-                  { id: 'low', label: 'Low energy' },
-                  { id: 'steady', label: 'Steady' },
-                  { id: 'high', label: 'High energy' },
-                ].map((energy) => (
-                  <Chip
-                    key={energy.id}
-                    label={energy.label}
-                    selected={selectedEnergy === energy.id}
-                    onPress={() => setSelectedEnergy(energy.id)}
-                  />
-                ))}
-              </View>
-              <View style={[styles.quickButtons, { marginTop: spacing.md }]}>
-                <AppButton
-                  label="Next step"
-                  style={{ flex: 1 }}
-                  onPress={() => {
-                    const nextTaskTitle =
-                      activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
-
-                    const prompt = nextTaskTitle
-                      ? `Coach me on the next task: "${nextTaskTitle}". Break it down into the smallest steps and tell me exactly what to do first.`
-                      : "Coach me: help me pick the best next task and tell me what to do first.";
-
-                    handleSendCoachMessage(prompt);
-                  }}
-                />
-                <AppButton
-                  label="I’m stuck"
-                  variant="secondary"
-                  style={{ flex: 1 }}
-                  onPress={async () => {
-                    await handleDailyCheckin({
-                      workedToday: false,
-                      blockers: "I'm stuck.",
-                    });
-
-                    const nextTaskTitle =
-                      activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
-
-                    setCoachInput(
-                      nextTaskTitle
-                        ? `I’m stuck on "${nextTaskTitle}" because `
-                        : "I’m stuck because "
-                    );
-                  }}
-                />
-              </View>
-              {isSubmittingCheckin ? (
-                <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />
-              ) : null}
-              {checkinError ? (
-                <Text style={[typography.bodySmall, { color: colors.danger, marginTop: spacing.sm }]}>
-                  {checkinError}
+            <View style={[styles.toolsHeaderRow, { paddingHorizontal: spacing.xl, marginBottom: spacing.sm }]}>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Coach tools</Text>
+              <TouchableOpacity
+                style={styles.toolsToggleBtn}
+                onPress={() => setShowCoachTools((prev) => !prev)}
+                hitSlop={8}
+              >
+                <Text style={[typography.bodySmall, { color: colors.accent }]}>
+                  {showCoachTools ? 'Hide' : 'Show'}
                 </Text>
-              ) : null}
-            </Card>
+                <Ionicons
+                  name={showCoachTools ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={16}
+                  color={colors.accent}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {showCoachTools ? (
+              <Card variant="default" style={{ marginHorizontal: spacing.xl, marginBottom: spacing.md }}>
+                <Text style={[typography.label, { color: colors.text, marginBottom: spacing.sm }]}>
+                  Energy level
+                </Text>
+                <View style={styles.energyRow}>
+                  {[
+                    { id: 'low', label: 'Low energy' },
+                    { id: 'steady', label: 'Steady' },
+                    { id: 'high', label: 'High energy' },
+                  ].map((energy) => (
+                    <Chip
+                      key={energy.id}
+                      label={energy.label}
+                      selected={selectedEnergy === energy.id}
+                      onPress={() => setSelectedEnergy(energy.id)}
+                    />
+                  ))}
+                </View>
+                <View style={[styles.quickButtons, { marginTop: spacing.md }]}>
+                  <AppButton
+                    label="Next step"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      const nextTaskTitle =
+                        activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
+
+                      const prompt = nextTaskTitle
+                        ? `Coach me on the next task: "${nextTaskTitle}". Break it down into the smallest steps and tell me exactly what to do first.`
+                        : "Coach me: help me pick the best next task and tell me what to do first.";
+
+                      handleSendCoachMessage(prompt);
+                    }}
+                  />
+                  <AppButton
+                    label="I'm stuck"
+                    variant="secondary"
+                    style={{ flex: 1 }}
+                    onPress={async () => {
+                      await handleDailyCheckin({
+                        workedToday: false,
+                        blockers: "I'm stuck.",
+                      });
+
+                      const nextTaskTitle =
+                        activeMilestoneData?.tasks?.find?.((t) => t?.is_completed !== 1)?.title ?? null;
+
+                      setCoachInput(
+                        nextTaskTitle
+                          ? `I'm stuck on "${nextTaskTitle}" because `
+                          : "I'm stuck because "
+                      );
+                    }}
+                  />
+                </View>
+                {isSubmittingCheckin ? (
+                  <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />
+                ) : null}
+                {checkinError ? (
+                  <Text style={[typography.bodySmall, { color: colors.danger, marginTop: spacing.sm }]}>
+                    {checkinError}
+                  </Text>
+                ) : null}
+              </Card>
+            ) : null}
 
             <ScrollView
+              style={styles.coachChatScroll}
               contentContainerStyle={{
                 paddingHorizontal: spacing.xl,
                 paddingBottom: spacing.md,
               }}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
               {coachMessages.map((message) => {
                 const isUser = message.sender === 'user';
@@ -428,15 +581,19 @@ export default function GoalDetailScreen({ route, navigation }) {
               <TextInput
                 value={coachInput}
                 onChangeText={setCoachInput}
-                placeholder="Describe the task you're working on (or what’s blocking you)..."
+                placeholder="Describe the task you're working on (or what's blocking you)..."
                 placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={4}
+                blurOnSubmit={false}
+                returnKeyType="default"
                 style={[
                   styles.textInput,
                   typography.body,
                   {
                     color: colors.text,
                     borderColor: colors.border,
-                    borderRadius: radius.pill,
+                    borderRadius: radius.lg,
                     backgroundColor: colors.background,
                   },
                 ]}
@@ -512,6 +669,16 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
   },
+  toolsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toolsToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   energyRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -528,16 +695,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 8,
   },
+  coachChatScroll: {
+    flex: 1,
+  },
   inputBar: {
     borderTopWidth: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 102,
+    maxHeight: 176,
     borderWidth: 1,
     paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: 'top',
     marginRight: 10,
   },
   sendBtn: {
@@ -545,5 +719,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
 });

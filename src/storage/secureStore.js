@@ -34,3 +34,25 @@ export const deleteItemAsync = async (key) => {
   }
   await SecureStore.deleteItemAsync(key);
 };
+
+export const getJsonItemAsync = async (key) => {
+  try {
+    const raw = await getItemAsync(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn('SecureStore getJsonItemAsync error', error);
+    return null;
+  }
+};
+
+export const mergeJsonItemAsync = async (key, partial) => {
+  try {
+    const current = (await getJsonItemAsync(key)) || {};
+    const next = { ...(current || {}), ...(partial || {}) };
+    await setItemAsync(key, JSON.stringify(next));
+    return next;
+  } catch (error) {
+    console.warn('SecureStore mergeJsonItemAsync error', error);
+    return null;
+  }
+};

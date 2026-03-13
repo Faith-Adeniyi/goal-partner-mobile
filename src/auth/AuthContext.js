@@ -9,6 +9,7 @@ import {
 import * as secureStore from '../storage/secureStore';
 
 const TOKEN_KEY = 'allison_access_token';
+const PROFILE_KEY = 'allison_profile';
 
 const AuthContext = createContext({
   user: null,
@@ -75,6 +76,17 @@ export function AuthProvider({ children }) {
     setToken(accessToken);
     setUser(currentUser);
     await secureStore.setItemAsync(TOKEN_KEY, accessToken);
+
+    // Persist basic profile info for UI personalization (e.g., Today greeting)
+    // Backend currently returns `user.full_name`; we can derive first/last.
+    const fullName = String(currentUser?.full_name || '').trim();
+    if (fullName) {
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ');
+      await secureStore.mergeJsonItemAsync(PROFILE_KEY, { firstName, lastName, fullName });
+    }
+
     return { success: true, data: currentUser, error: null };
   }, []);
 

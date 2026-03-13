@@ -4,7 +4,7 @@ import { useTheme } from '../../theme/ThemeContext';
  * Typed wrapper around ThemeContext for UI layer consumption.
  */
 export const useAppTheme = () => {
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { theme, isDark, toggleTheme, accentKey, setAccentKey, backgroundStyle } = useTheme();
 
   return {
     theme,
@@ -17,5 +17,8 @@ export const useAppTheme = () => {
     isDark,
     statusBarStyle: isDark ? 'light' : 'dark',
     toggleTheme,
+    accentKey,
+    setAccentKey,
+    backgroundStyle,
   };
 };

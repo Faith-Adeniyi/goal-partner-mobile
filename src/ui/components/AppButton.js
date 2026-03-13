@@ -33,9 +33,9 @@ export default function AppButton({
   icon,
   style,
   textStyle,
-  minHeight = 50,
+  minHeight,
 }) {
-  const { colors, radius, typography } = useAppTheme();
+  const { colors, radius, typography, spacing } = useAppTheme();
   const isDisabled = disabled || loading;
   const selected = variantStyles(colors)[variant] || variantStyles(colors).primary;
 
@@ -50,7 +50,8 @@ export default function AppButton({
           backgroundColor: selected.backgroundColor,
           borderColor: selected.borderColor,
           borderRadius: radius.lg,
-          minHeight,
+          minHeight: minHeight ?? 48,
+          paddingHorizontal: spacing.lg,
           opacity: isDisabled ? 0.55 : 1,
         },
         style,
@@ -73,7 +74,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    paddingHorizontal: 18,
   },
   content: {
     flexDirection: 'row',

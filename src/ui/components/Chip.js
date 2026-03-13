@@ -17,7 +17,7 @@ const mapVariant = (colors, variant, selected) => {
   return { backgroundColor: colors.surface, borderColor: colors.border, textColor: colors.text };
 };
 
-export default function Chip({ label, onPress, selected = false, variant = 'neutral', style, textStyle }) {
+export default function Chip({ label, onPress, selected = false, variant = 'neutral', style, textStyle, fullWidth = false }) {
   const { colors, radius, spacing, typography } = useAppTheme();
   const scheme = mapVariant(colors, variant, selected);
 
@@ -25,6 +25,7 @@ export default function Chip({ label, onPress, selected = false, variant = 'neut
     <View
       style={[
         styles.chip,
+        fullWidth && styles.chipFullWidth,
         {
           backgroundColor: scheme.backgroundColor,
           borderColor: scheme.borderColor,
@@ -35,7 +36,13 @@ export default function Chip({ label, onPress, selected = false, variant = 'neut
         style,
       ]}
     >
-      <Text style={[typography.caption, { color: scheme.textColor }, textStyle]}>{label}</Text>
+      <Text
+        style={[typography.caption, { color: scheme.textColor, flexShrink: 1 }, textStyle]}
+        numberOfLines={2}
+        ellipsizeMode="tail"
+      >
+        {label}
+      </Text>
     </View>
   );
 
@@ -52,5 +59,8 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
     alignSelf: 'flex-start',
+  },
+  chipFullWidth: {
+    alignSelf: 'stretch',
   },
 });

@@ -1,8 +1,19 @@
-import { Ionicons } from '@expo/vector-icons';
+﻿import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { fetchActiveGoals, fetchGoalDetails, submitDailyCheckin } from '../api/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { fetchActiveGoals, fetchGoalDetails, fetchGoalStreak } from '../api/client';
+import * as secureStore from '../storage/secureStore';
 import {
   AppButton,
   AppScreen,
@@ -19,6 +30,81 @@ const deriveMomentum = (goals = []) => {
   if (!goals.length) return 0;
   const sum = goals.reduce((acc, g) => acc + Number(g?.progress || 0), 0);
   return Math.max(0, Math.min(100, Math.round(sum / goals.length)));
+};
+
+const DEFAULT_STREAK = {
+  current_streak: 0,
+  longest_streak: 0,
+  freeze_available: 1,
+  last_active_date: null,
+  freeze_week_key: null,
+};
+const FIRE_EMOJI = '\u{1F525}';
+
+const toNumberOrDefault = (value, fallback) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const toFreezeAvailable = (value, fallback) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (value === true) return 1;
+  if (value === false) return 0;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const coerceStreak = (candidate) => {
+  if (!candidate || typeof candidate !== 'object') return null;
+  const current = candidate.current_streak ?? candidate.currentStreak;
+  const longest = candidate.longest_streak ?? candidate.longestStreak;
+  const freeze = candidate.freeze_available ?? candidate.freezeAvailable;
+  const lastActiveDate = candidate.last_active_date ?? candidate.lastActiveDate;
+  const freezeWeekKey = candidate.freeze_week_key ?? candidate.freezeWeekKey;
+
+  if (
+    current === undefined &&
+    longest === undefined &&
+    freeze === undefined &&
+    lastActiveDate === undefined &&
+    freezeWeekKey === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    current_streak: toNumberOrDefault(current, DEFAULT_STREAK.current_streak),
+    longest_streak: toNumberOrDefault(longest, DEFAULT_STREAK.longest_streak),
+    freeze_available: toFreezeAvailable(freeze, DEFAULT_STREAK.freeze_available),
+    last_active_date: lastActiveDate ?? DEFAULT_STREAK.last_active_date,
+    freeze_week_key: freezeWeekKey ?? DEFAULT_STREAK.freeze_week_key,
+  };
+};
+
+const normalizeStreakPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+  return (
+    coerceStreak(payload.streak) ||
+    coerceStreak(payload.data?.streak) ||
+    coerceStreak(payload.data?.data?.streak) ||
+    coerceStreak(payload.data?.data) ||
+    coerceStreak(payload.data) ||
+    coerceStreak(payload)
+  );
+};
+
+const getGoalPlanId = (goal) => {
+  if (!goal || typeof goal !== 'object') return null;
+  const candidate =
+    goal.plan_id ??
+    goal.planId ??
+    goal.id ??
+    goal.goal_id ??
+    goal.goalId ??
+    null;
+  if (candidate === null || candidate === undefined || candidate === '') return null;
+  return candidate;
 };
 
 const pickNextTaskFromGoalDetails = (goalDetails) => {
@@ -41,6 +127,22 @@ const pickNextTaskFromGoalDetails = (goalDetails) => {
 export default function TodayScreen({ navigation }) {
   const { colors, spacing, typography, radius, elevation } = useAppTheme();
 
+  const [greetingName, setGreetingName] = useState('');
+  const greetings = useMemo(
+    () => [
+      (name) => `Hello ${name}`,
+      (name) => `Hi there, ${name}`,
+      (name) => `Hi ${name}. How's it going today?`,
+    ],
+    []
+  );
+  const greetingText = useMemo(() => {
+    const name = (greetingName || '').trim();
+    if (!name) return 'Hello';
+    const pick = greetings[Math.floor(Math.random() * greetings.length)];
+    return pick(name);
+  }, [greetingName, greetings]);
+
   const [goals, setGoals] = useState([]);
   const [activeGoal, setActiveGoal] = useState(null);
 
@@ -50,16 +152,55 @@ export default function TodayScreen({ navigation }) {
   const [loadingNextTask, setLoadingNextTask] = useState(false);
   const [error, setError] = useState('');
 
-  const [energy, setEnergy] = useState('steady');
-  const [checkinSending, setCheckinSending] = useState(false);
-  const [checkinError, setCheckinError] = useState('');
+  const [streak, setStreak] = useState(DEFAULT_STREAK);
+  const [streakLoading, setStreakLoading] = useState(false);
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [dailyQuote, setDailyQuote] = useState('');
+  const firePulse = useRef(new Animated.Value(0)).current;
+  const activeGoalId = useMemo(() => getGoalPlanId(activeGoal), [activeGoal]);
+  const hasStreak = useMemo(
+    () => Boolean(streak?.last_active_date) || (streak?.current_streak ?? 0) > 0,
+    [streak]
+  );
 
   const momentum = useMemo(() => deriveMomentum(goals), [goals]);
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(firePulse, {
+          toValue: 1,
+          duration: 850,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(firePulse, {
+          toValue: 0,
+          duration: 850,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [firePulse]);
+
+  useEffect(() => {
+    const loadGreeting = async () => {
+      // Prefer locally stored profile name (set during auth success), fallback to activeGoal info later if needed.
+      const profile = await secureStore.getJsonItemAsync('allison_profile');
+      const firstName = String(profile?.firstName || '').trim();
+      if (firstName) setGreetingName(firstName);
+    };
+
+    loadGreeting();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
-    setCheckinError('');
 
     const response = await fetchActiveGoals();
     if (!response.success) {
@@ -70,21 +211,21 @@ export default function TodayScreen({ navigation }) {
 
     const list = response.data?.data || [];
     setGoals(list);
-
-    const firstGoal = list[0] || null;
+    const firstGoal = list.find((goal) => getGoalPlanId(goal) !== null) || list[0] || null;
     setActiveGoal(firstGoal);
     setLoading(false);
   }, []);
 
   const loadNextTask = useCallback(
     async (goal) => {
-      if (!goal?.plan_id) {
+      const planId = getGoalPlanId(goal);
+      if (!planId) {
         setNextTask(null);
         return;
       }
 
       setLoadingNextTask(true);
-      const details = await fetchGoalDetails(goal.plan_id);
+      const details = await fetchGoalDetails(planId);
       setLoadingNextTask(false);
 
       if (details.success) {
@@ -104,27 +245,117 @@ export default function TodayScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!activeGoalId) {
+        setNextTask(null);
+        return;
+      }
+
       loadNextTask(activeGoal);
-    }, [activeGoal, loadNextTask])
+    }, [activeGoal, activeGoalId, loadNextTask])
   );
 
-  const handleQuickCheckin = async (workedToday) => {
-    if (!activeGoal?.plan_id || checkinSending) return;
-    setCheckinSending(true);
-    setCheckinError('');
+  const quotes = useMemo(
+    () => [
+      'Small steps, big streaks.',
+      'Show up today. Future-you is watching.',
+      'Progress loves consistency.',
+      'One win today. That’s the whole job.',
+      'Keep the chain alive.',
+      'Discipline beats motivation—especially on quiet days.',
+      'Your streak is proof you can do hard things.',
+      'Don’t break it. Build it.',
+      'Consistency is a superpower.',
+      'A little effort today saves a lot tomorrow.',
+      'You’re closer than you think—keep going.',
+      'Keep promises to yourself.',
+      'Momentum is built, not found.',
+      'Make it easy: just start.',
+      'Action creates confidence.',
+      'Do it for the version of you that won’t quit.',
+      'Every day counts.',
+      'Win the day, then repeat.',
+      'Tiny wins stack into big results.',
+      'Stay hot. Stay kind to yourself.',
+    ],
+    []
+  );
 
-    const response = await submitDailyCheckin(activeGoal.plan_id, {
-      worked_today: workedToday,
-      energy_level: energy,
-      notes: workedToday ? 'Checked in from Today screen.' : '',
-      blockers: workedToday ? '' : 'Need help getting unstuck.',
-    });
+  const quoteForToday = useCallback(() => {
+    const today = new Date();
+    const key = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) % 2147483647;
+    return quotes[hash % quotes.length];
+  }, [quotes]);
 
-    setCheckinSending(false);
-    if (!response.success) {
-      setCheckinError(response.error || 'Failed to submit check-in.');
-    }
-  };
+  const loadStreak = useCallback(
+    async (goal) => {
+      const planId = getGoalPlanId(goal);
+      if (!planId) {
+        setStreak(DEFAULT_STREAK);
+        setDailyQuote(quoteForToday());
+        return;
+      }
+
+      setStreakLoading(true);
+      const res = await fetchGoalStreak(planId);
+      setStreakLoading(false);
+
+      const normalized = normalizeStreakPayload(res.data);
+      if (res.success && normalized) {
+        setStreak(normalized);
+      } else {
+        setStreak(DEFAULT_STREAK);
+      }
+
+      setDailyQuote(quoteForToday());
+    },
+    [quoteForToday]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!activeGoalId) {
+        setStreak(DEFAULT_STREAK);
+        setDailyQuote(quoteForToday());
+        return;
+      }
+
+      loadStreak(activeGoal);
+    }, [activeGoal, activeGoalId, loadStreak, quoteForToday])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const maybeRefreshAfterToggle = async () => {
+        const flags = await secureStore.getJsonItemAsync('allison_runtime_flags');
+        const lastTaskToggleAt = Number(flags?.lastTaskToggleAt || 0);
+        const lastKnownStreak = flags?.lastKnownStreak;
+
+        if (!lastTaskToggleAt && !lastKnownStreak) return;
+
+        // If we have a cached streak snapshot, apply immediately for snappy UI.
+        if (lastKnownStreak && typeof lastKnownStreak === 'object') {
+          const normalized = normalizeStreakPayload(lastKnownStreak);
+          if (normalized) {
+            setStreak((prev) => ({ ...prev, ...normalized }));
+          }
+        }
+
+        // Clear immediately to avoid repeated refresh.
+        await secureStore.mergeJsonItemAsync('allison_runtime_flags', { lastTaskToggleAt: 0, lastKnownStreak: null });
+
+        // Then refresh from API to ensure correctness.
+        if (activeGoal) {
+          await loadStreak(activeGoal);
+          await loadNextTask(activeGoal);
+        }
+      };
+
+      maybeRefreshAfterToggle();
+    }, [activeGoal, loadNextTask, loadStreak])
+  );
+
 
   if (loading && goals.length === 0) {
     return (
@@ -162,7 +393,39 @@ export default function TodayScreen({ navigation }) {
         contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl }}
       >
         <View style={{ paddingTop: spacing.sm }}>
-          <ScreenHeader title="Today" subtitle="Tiny wins. Big momentum." compact />
+          <ScreenHeader
+            title={greetingText}
+            subtitle="Tiny wins. Big momentum."
+            compact
+            rightAction={
+              <TouchableOpacity
+                onPress={() => setStreakModalVisible(true)}
+                style={[styles.streakBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.pill }]}
+                hitSlop={8}
+              >
+                <Animated.Text
+                  style={[
+                    typography.h2,
+                    {
+                      lineHeight: 28,
+                      paddingTop: 2,
+                      includeFontPadding: false,
+                      textAlignVertical: 'center',
+                      transform: [
+                        { scale: firePulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
+                        { rotate: firePulse.interpolate({ inputRange: [0, 1], outputRange: ['-3deg', '3deg'] }) },
+                      ],
+                    },
+                  ]}
+                >
+                  {FIRE_EMOJI}
+                </Animated.Text>
+                <Text style={[typography.h3, { color: colors.text, marginLeft: 8 }]}>
+                  {streakLoading ? '…' : String(streak?.current_streak ?? 0)}
+                </Text>
+              </TouchableOpacity>
+            }
+          />
         </View>
 
         <View
@@ -212,21 +475,21 @@ export default function TodayScreen({ navigation }) {
             </Text>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {goals.map((g) => {
-                const selected = activeGoal?.plan_id === g.plan_id;
-                return (
-                  <Chip
-                    key={`goal-${g.plan_id}`}
-                    label={g.goal_summary || 'Untitled'}
-                    selected={selected}
-                    onPress={() => setActiveGoal(g)}
-                  />
-                );
-              })}
-            </View>
-          </ScrollView>
+          <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, gap: 10 }}>
+            {goals.map((g) => {
+              const goalId = getGoalPlanId(g);
+              const selected = activeGoalId !== null && activeGoalId === goalId;
+              return (
+                <Chip
+                  key={`goal-${goalId ?? g.goal_summary ?? 'unknown'}`}
+                  label={g.goal_summary || 'Untitled'}
+                  selected={selected}
+                  onPress={() => setActiveGoal(g)}
+                  style={{ alignSelf: 'flex-start' }}
+                />
+              );
+            })}
+          </View>
         </Card>
 
         <Card variant="outlined" style={{ marginTop: spacing.md }}>
@@ -264,7 +527,9 @@ export default function TodayScreen({ navigation }) {
                 <AppButton
                   label="Do it now"
                   style={{ flex: 1 }}
-                  onPress={() => navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoal.plan_id } })}
+                  onPress={() =>
+                    navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoalId } })
+                  }
                 />
                 <AppButton
                   label="Ask Allison"
@@ -282,113 +547,121 @@ export default function TodayScreen({ navigation }) {
               <AppButton
                 label="Open goal"
                 style={{ marginTop: spacing.md }}
-                onPress={() => navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoal?.plan_id } })}
+                onPress={() =>
+                  navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoalId } })
+                }
               />
             </View>
           )}
         </Card>
 
-        <Card variant="outlined" style={{ marginTop: spacing.md }}>
-          <View style={styles.sectionHeader}>
-            <Text style={[typography.h3, { color: colors.text }]}>Quick check-in</Text>
-            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
-              Fast signal → smarter coaching.
-            </Text>
-          </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            {[
-              { id: 'low', label: 'Low' },
-              { id: 'steady', label: 'Steady' },
-              { id: 'high', label: 'High' },
-            ].map((item) => (
-              <Chip key={item.id} label={item.label} selected={energy === item.id} onPress={() => setEnergy(item.id)} />
-            ))}
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md }}>
-            <TouchableOpacity
-              onPress={() => handleQuickCheckin(true)}
-              style={[
-                styles.checkinBtn,
-                {
-                  backgroundColor: colors.accent,
-                  borderRadius: radius.pill,
-                  opacity: checkinSending ? 0.6 : 1,
-                },
-              ]}
-              disabled={checkinSending}
-            >
-              <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
-              <Text style={[typography.label, { color: '#ffffff', marginLeft: 8 }]}>I worked today</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleQuickCheckin(false)}
-              style={[
-                styles.checkinBtn,
-                {
-                  backgroundColor: colors.surfaceMuted,
-                  borderRadius: radius.pill,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  opacity: checkinSending ? 0.6 : 1,
-                },
-              ]}
-              disabled={checkinSending}
-            >
-              <Ionicons name="help-circle" size={18} color={colors.accent} />
-              <Text style={[typography.label, { color: colors.text, marginLeft: 8 }]}>I’m stuck</Text>
-            </TouchableOpacity>
-          </View>
-
-          {checkinError ? (
-            <Text style={[typography.bodySmall, { color: colors.danger, marginTop: spacing.sm }]}>
-              {checkinError}
-            </Text>
-          ) : null}
-        </Card>
-
-        <Card variant="outlined" style={{ marginTop: spacing.md }}>
-          <View style={styles.sectionHeader}>
-            <Text style={[typography.h3, { color: colors.text }]}>Fast Allison prompts</Text>
-            <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
-              Tap one. Don’t overthink it.
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-            {[
-              { icon: 'git-branch-outline', label: 'Break down', to: 'Allison' },
-              { icon: 'calendar-outline', label: 'Plan today', to: 'Allison' },
-              { icon: 'flash-outline', label: 'Boost me', to: 'Allison' },
-              { icon: 'trophy-outline', label: 'Review week', to: 'Insights' },
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                onPress={() => navigation.navigate(item.to)}
-                style={[
-                  styles.promptCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    borderRadius: radius.lg,
-                    ...elevation.low,
-                  },
-                ]}
-              >
-                <Ionicons name={item.icon} size={18} color={colors.accent} />
-                <Text style={[typography.label, { color: colors.text, marginTop: 10 }]}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
       </ScrollView>
+      <Modal
+        visible={streakModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStreakModalVisible(false)}
+      >
+        <View style={[styles.streakOverlay, { backgroundColor: colors.overlay }]}>
+          <TouchableOpacity style={styles.streakBackdrop} onPress={() => setStreakModalVisible(false)} />
+          <View
+            style={[
+              styles.streakCardWrap,
+              {
+                paddingHorizontal: spacing.xl,
+              },
+            ]}
+          >
+            <Card
+              variant="outlined"
+              style={{
+                borderRadius: radius.xl,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                ...elevation.high,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Animated.Text
+                    style={[
+                      typography.h2,
+                      {
+                        marginRight: 10,
+                        lineHeight: 28,
+                        paddingTop: 2,
+                        includeFontPadding: false,
+                        textAlignVertical: 'center',
+                        transform: [
+                          { scale: firePulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+                          { rotate: firePulse.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) },
+                        ],
+                      },
+                    ]}
+                  >
+                    {FIRE_EMOJI}
+                  </Animated.Text>
+                  <Text style={[typography.h3, { color: colors.text }]}>
+                    {String(streak?.current_streak ?? 0)} day streak
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setStreakModalVisible(false)} hitSlop={8}>
+                  <Ionicons name="close" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 8 }]}>
+                Best: {String(streak?.longest_streak ?? 0)} • Freeze: {streak?.freeze_available === 1 ? 'Available' : 'Used'}
+              </Text>
+
+              <View style={[styles.quoteBox, { borderColor: colors.border, backgroundColor: colors.surfaceMuted, borderRadius: radius.lg }]}>
+                <Text style={[typography.body, { color: colors.text }]}>
+                  {hasStreak
+                    ? dailyQuote
+                    : 'No streak yet. Complete a task or log a check-in today to light the fire.'}
+                </Text>
+              </View>
+
+              <AppButton
+                label="Keep it going"
+                style={{ marginTop: spacing.md }}
+                onPress={() => setStreakModalVisible(false)}
+              />
+            </Card>
+          </View>
+        </View>
+      </Modal>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  streakBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 72,
+    flexShrink: 0,
+  },
+  streakOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  streakBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  streakCardWrap: {
+    width: '100%',
+  },
+  quoteBox: {
+    borderWidth: 1,
+    padding: 14,
+    marginTop: 12,
+  },
   hero: {
     borderWidth: 1,
     padding: 16,

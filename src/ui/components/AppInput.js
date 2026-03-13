@@ -14,8 +14,19 @@ export default function AppInput({
   errorText,
   returnKeyType,
   onSubmitEditing,
+  multiline = false,
+  numberOfLines,
+  blurOnSubmit,
+  containerStyle,
+  inputStyle,
+  minHeight,
+  maxHeight,
 }) {
   const { colors, radius, spacing, typography } = useAppTheme();
+
+  const resolvedMinHeight = multiline ? minHeight || 104 : minHeight || 52;
+  const resolvedMaxHeight = multiline ? maxHeight || 180 : undefined;
+  const resolvedBlurOnSubmit = typeof blurOnSubmit === 'boolean' ? blurOnSubmit : !multiline;
 
   return (
     <View style={styles.wrapper}>
@@ -23,16 +34,30 @@ export default function AppInput({
       <View
         style={[
           styles.inputContainer,
+          multiline && styles.inputContainerMultiline,
           {
             borderColor: errorText ? colors.danger : colors.border,
             borderRadius: radius.lg,
             backgroundColor: colors.surface,
+            minHeight: resolvedMinHeight,
+            paddingHorizontal: spacing.md,
           },
+          containerStyle,
         ]}
       >
-        {icon ? <Ionicons name={icon} size={20} color={colors.textMuted} style={{ marginRight: spacing.xs }} /> : null}
+        {icon ? <Ionicons name={icon} size={Math.round(typography.body.fontSize * 1.25)} color={colors.textMuted} style={{ marginRight: spacing.xs }} /> : null}
         <TextInput
-          style={[styles.input, typography.body, { color: colors.text }]}
+          style={[
+            styles.input,
+            multiline && styles.inputMultiline,
+            typography.body,
+            {
+              color: colors.text,
+              minHeight: resolvedMinHeight,
+              maxHeight: resolvedMaxHeight,
+            },
+            inputStyle,
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -41,6 +66,9 @@ export default function AppInput({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           returnKeyType={returnKeyType}
+          multiline={multiline}
+          numberOfLines={multiline ? numberOfLines || 4 : 1}
+          blurOnSubmit={resolvedBlurOnSubmit}
           onSubmitEditing={onSubmitEditing}
         />
       </View>
@@ -56,14 +84,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputContainer: {
-    minHeight: 52,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+  },
+  inputContainerMultiline: {
+    alignItems: 'flex-start',
+    paddingVertical: 10,
   },
   input: {
     flex: 1,
-    minHeight: 52,
+  },
+  inputMultiline: {
+    textAlignVertical: 'top',
   },
 });

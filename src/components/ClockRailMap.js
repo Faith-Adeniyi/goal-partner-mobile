@@ -6,10 +6,10 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 import Svg, { Circle, Line } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
 
-const CANVAS_SCALE = 1.8;
-const MIN_CANVAS_SIZE = 900;
-const MAX_CANVAS_SIZE = 1600;
-const MIN_RAIL_RADIUS = 220;
+const CANVAS_SCALE = 1.15;
+const MIN_CANVAS_SIZE = 520;
+const MAX_CANVAS_SIZE = 1400;
+const MIN_RAIL_RADIUS = 160;
 const CORE_MIN_SIZE = 120;
 const CORE_MAX_SIZE = 170;
 const CHECKPOINT_MIN_SIZE = 48;
@@ -31,12 +31,19 @@ const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
 
 export default function ClockRailMap({ milestone, onToggleTask }) {
   const { theme } = useTheme();
-  const { width, height } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [viewportSize, setViewportSize] = useState({
+    width: windowWidth,
+    height: windowHeight,
+  });
   const [activeTask, setActiveTask] = useState(null);
   const tasks = useMemo(() => milestone?.tasks ?? [], [milestone]);
   const totalTasks = tasks.length;
+  const width = viewportSize.width || windowWidth;
+  const height = viewportSize.height || windowHeight;
 
-  const initialCanvasSize = clamp(Math.max(width, height) * CANVAS_SCALE, MIN_CANVAS_SIZE, MAX_CANVAS_SIZE);
+  const maxViewport = Math.min(width, height);
+  const initialCanvasSize = clamp(maxViewport * CANVAS_SCALE, MIN_CANVAS_SIZE, MAX_CANVAS_SIZE);
 
   const rotation = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -47,13 +54,14 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
   const savedTranslateY = useSharedValue((height - initialCanvasSize) / 2);
 
   const geometry = useMemo(() => {
-    const canvasSize = clamp(Math.max(width, height) * CANVAS_SCALE, MIN_CANVAS_SIZE, MAX_CANVAS_SIZE);
+    const maxViewport = Math.min(width, height);
+    const canvasSize = clamp(maxViewport * CANVAS_SCALE, MIN_CANVAS_SIZE, MAX_CANVAS_SIZE);
     const center = canvasSize / 2;
-    const checkpointSizeFromCanvas = clamp(canvasSize * 0.05, CHECKPOINT_MIN_SIZE, CHECKPOINT_MAX_SIZE);
-    const maxRailRadius = center - checkpointSizeFromCanvas / 2 - 32;
+    const checkpointSizeFromCanvas = clamp(canvasSize * 0.06, CHECKPOINT_MIN_SIZE, CHECKPOINT_MAX_SIZE);
+    const maxRailRadius = center - checkpointSizeFromCanvas / 2 - 20;
     const desiredSpacing = checkpointSizeFromCanvas + CHECKPOINT_GAP;
     const requiredRadius = totalTasks > 1 ? (desiredSpacing * totalTasks) / (2 * Math.PI) : MIN_RAIL_RADIUS;
-    const railRadius = clamp(Math.max(canvasSize * 0.28, requiredRadius), MIN_RAIL_RADIUS, maxRailRadius);
+    const railRadius = clamp(Math.max(canvasSize * 0.34, requiredRadius), MIN_RAIL_RADIUS, maxRailRadius);
     const checkpointSize =
       totalTasks > 0
         ? clamp((2 * Math.PI * railRadius) / totalTasks - CHECKPOINT_GAP, CHECKPOINT_MIN_SIZE, CHECKPOINT_MAX_SIZE)
@@ -70,6 +78,24 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
     };
   }, [width, height, totalTasks]);
 
+  const defaultScale = 1;
+
+  // Fit-to-view scale so the entire clockrail (outer radius + node size) can be seen at once without panning.
+  // (Must be defined *after* geometry to avoid "checkpointSize of undefined" crashes.)
+  // Adapt to screen size:
+  // - On small screens: show the full rail with a bit of padding (fitScale <= 1)
+  // - On large screens: allow scale up to 1 so it doesn't look "tiny"
+  const fitScale = useMemo(() => {
+    const nodeRadius = geometry?.checkpointSize ? geometry.checkpointSize / 2 : CHECKPOINT_MIN_SIZE / 2;
+    const railRadius = geometry?.railRadius ?? MIN_RAIL_RADIUS;
+    const padding = 16;
+    const contentRadius = railRadius + nodeRadius + padding;
+    const requiredSize = contentRadius * 2;
+    const maxViewport = Math.min(width, height);
+    if (!requiredSize || !maxViewport) return defaultScale;
+    return clamp(maxViewport / requiredSize, 0.5, 1);
+  }, [defaultScale, geometry, width, height]);
+
   const taskNodes = useMemo(() => {
     if (totalTasks === 0) return [];
 
@@ -85,30 +111,47 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
   }, [tasks, totalTasks, geometry.center, geometry.railRadius]);
 
   useEffect(() => {
+    // UX: subtle motion should feel "alive" without becoming distracting.
+    // 32s per full rotation is ~25% faster than 40s, but still calm.
     rotation.value = withRepeat(
-      withTiming(360, { duration: 40000, easing: Easing.linear }),
+      withTiming(360, { duration: 32000, easing: Easing.linear }),
       -1,
       false
     );
   }, [rotation]);
 
   useEffect(() => {
+    // Reset viewport so the whole rail is visible by default (no hidden nodes on first render).
+    // Also apply fitScale as the starting zoom.
     const centeredX = (width - geometry.canvasSize) / 2;
     const centeredY = (height - geometry.canvasSize) / 2;
+
+    scale.value = fitScale;
+    savedScale.value = fitScale;
+
     translateX.value = centeredX;
     translateY.value = centeredY;
     savedTranslateX.value = centeredX;
     savedTranslateY.value = centeredY;
-  }, [width, height, geometry.canvasSize, translateX, translateY, savedTranslateX, savedTranslateY]);
+  }, [
+    width,
+    height,
+    geometry.canvasSize,
+    fitScale,
+    scale,
+    savedScale,
+    translateX,
+    translateY,
+    savedTranslateX,
+    savedTranslateY,
+  ]);
 
+  // Expo Go + RN Gesture Handler sometimes misbehaves with Pinch+Reanimated on Android.
+  // Instead of crashing the app, we safely degrade to pan-only on Android in dev clients.
   const pinchGesture = Gesture.Pinch()
-    .onUpdate((e) => {
-      const nextScale = savedScale.value * e.scale;
-      scale.value = Math.min(Math.max(nextScale, 0.8), 3);
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
+    .enabled(false)
+    .onUpdate(() => {})
+    .onEnd(() => {});
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
@@ -154,7 +197,21 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
   if (!milestone) return null;
 
   return (
-    <View style={styles.viewport}>
+    <View
+      style={styles.viewport}
+      onLayout={(event) => {
+        const { width: layoutWidth, height: layoutHeight } = event.nativeEvent.layout;
+        if (
+          Math.abs(layoutWidth - viewportSize.width) > 1 ||
+          Math.abs(layoutHeight - viewportSize.height) > 1
+        ) {
+          setViewportSize({
+            width: layoutWidth,
+            height: layoutHeight,
+          });
+        }
+      }}
+    >
       <GestureDetector gesture={composedGestures}>
         <Animated.View
           style={[
@@ -163,27 +220,8 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
             animatedCanvasStyle,
           ]}
         >
-          <Animated.View style={[StyleSheet.absoluteFill, styles.centerElements, animatedRailStyle]}>
+          <View style={[StyleSheet.absoluteFill, styles.centerElements]}>
             <Svg width={geometry.canvasSize} height={geometry.canvasSize}>
-              <Circle
-                cx={geometry.center}
-                cy={geometry.center}
-                r={geometry.railRadius}
-                stroke={theme.border}
-                strokeWidth="2"
-                fill="transparent"
-                strokeDasharray="8 12"
-              />
-              <Circle
-                cx={geometry.center}
-                cy={geometry.center}
-                r={geometry.innerRailRadius}
-                stroke={theme.border}
-                strokeWidth="1"
-                fill="transparent"
-                strokeDasharray="4 8"
-                opacity="0.4"
-              />
               {taskNodes.map(({ task, index, position }) => {
                 return (
                   <Line
@@ -192,12 +230,37 @@ export default function ClockRailMap({ milestone, onToggleTask }) {
                     y1={geometry.center}
                     x2={position.x}
                     y2={position.y}
-                    stroke={theme.border}
-                    strokeWidth="1"
-                    opacity="0.5"
+                    stroke={theme.accent}
+                    strokeWidth="2"
+                    opacity="0.7"
                   />
                 );
               })}
+            </Svg>
+          </View>
+
+          <Animated.View style={[StyleSheet.absoluteFill, styles.centerElements, animatedRailStyle]}>
+            <Svg width={geometry.canvasSize} height={geometry.canvasSize}>
+              <Circle
+                cx={geometry.center}
+                cy={geometry.center}
+                r={geometry.railRadius}
+                stroke={theme.accent}
+                strokeWidth="6"
+                fill="transparent"
+                strokeDasharray="14 10"
+                opacity="0.9"
+              />
+              <Circle
+                cx={geometry.center}
+                cy={geometry.center}
+                r={geometry.innerRailRadius}
+                stroke={theme.accent}
+                strokeWidth="4"
+                fill="transparent"
+                strokeDasharray="10 8"
+                opacity="0.75"
+              />
             </Svg>
           </Animated.View>
 
@@ -350,26 +413,28 @@ const styles = StyleSheet.create({
   },
   overlayWrapper: {
     position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
+    bottom: 16,
+    left: 16,
+    right: 16,
     zIndex: 100,
+    pointerEvents: 'box-none',
   },
   overlayCard: {
-    padding: 24,
-    borderRadius: 24,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 15,
+    maxHeight: 170,
   },
   overlayTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 26,
-    marginBottom: 20,
+    lineHeight: 22,
+    marginBottom: 12,
   },
   overlayActions: {
     flexDirection: 'row',

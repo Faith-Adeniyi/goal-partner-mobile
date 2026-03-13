@@ -2,16 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import apiClient from './src/api/client';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 import ChatScreen from './src/screens/ChatScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import EditTasksScreen from './src/screens/EditTasksScreen';
 import GoalDetailScreen from './src/screens/GoalDetailScreen';
 import InsightsScreen from './src/screens/InsightsScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import PersonalisationScreen from './src/screens/PersonalisationScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import TodayScreen from './src/screens/TodayScreen';
@@ -22,6 +26,7 @@ const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const GoalsStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const ProfileStack = createNativeStackNavigator();
 
 function AuthStackNavigator() {
   return (
@@ -38,7 +43,19 @@ function GoalsStackNavigator() {
     <GoalsStack.Navigator screenOptions={{ headerShown: false }}>
       <GoalsStack.Screen name="DashboardList" component={DashboardScreen} />
       <GoalsStack.Screen name="GoalDetail" component={GoalDetailScreen} />
+      <GoalsStack.Screen name="EditTasks" component={EditTasksScreen} />
     </GoalsStack.Navigator>
+  );
+}
+
+function ProfileStackNavigator({ onSignOut }) {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileHome">
+        {(props) => <ProfileScreen {...props} onSignOut={onSignOut} />}
+      </ProfileStack.Screen>
+      <ProfileStack.Screen name="Personalisation" component={PersonalisationScreen} />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -86,8 +103,11 @@ function MainTabs() {
         component={InsightsScreen}
         options={{ tabBarLabel: 'Insights', tabBarIcon: tabIcon('bar-chart-outline') }}
       />
-      <Tab.Screen name="You" options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('happy-outline') }}>
-        {(props) => <ProfileScreen {...props} onSignOut={signOut} />}
+      <Tab.Screen
+        name="You"
+        options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('happy-outline') }}
+      >
+        {(props) => <ProfileStackNavigator {...props} onSignOut={signOut} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
@@ -96,6 +116,25 @@ function MainTabs() {
 function RootRouter() {
   const { theme, isDark } = useTheme();
   const { isAuthenticated, isBootstrapping } = useAuth();
+  const { expoPushToken } = usePushNotifications();
+
+  useEffect(() => {
+    const syncToken = async () => {
+      // `expoPushToken` is an object from the hook (we need `.data`)
+      if (expoPushToken?.data) {
+        try {
+          console.log('Syncing Push Token:', expoPushToken.data);
+          await apiClient.post('/users/push-token', {
+            token: expoPushToken.data,
+          });
+        } catch (error) {
+          console.error('Failed to sync push token:', error);
+        }
+      }
+    };
+
+    syncToken();
+  }, [expoPushToken]);
 
   const navTheme = useMemo(() => {
     const baseTheme = isDark ? DarkTheme : DefaultTheme;

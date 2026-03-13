@@ -11,10 +11,10 @@ export default function AppScreen({
   style,
   contentContainerStyle,
   keyboardOffset = 0,
-  backgroundVariant = 'noise',
+  backgroundVariant = 'plain',
   showsVerticalScrollIndicator = false,
 }) {
-  const { colors, spacing, statusBarStyle, isDark } = useAppTheme();
+  const { colors, spacing, statusBarStyle, backgroundStyle } = useAppTheme();
 
   const contentStyles = [
     styles.content,
@@ -47,16 +47,28 @@ export default function AppScreen({
   );
 
   return (
-    <ImageBackground
-      source={backgroundVariant === 'noise' ? require('../../../assets/noise.png') : undefined}
-      style={[styles.container, { backgroundColor: colors.background }, style]}
-      imageStyle={{ opacity: isDark ? 0.2 : 0.1, resizeMode: 'repeat' }}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }, style]}>
+      {/* Theme background layer: palette tint + subtle grain, with overlay for readability */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: backgroundStyle?.tint || 'transparent' }]} />
+      <ImageBackground
+        source={require('../../../assets/noise.png')}
+        resizeMode="repeat"
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { opacity: 0.06 }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: backgroundStyle?.overlay || 'transparent' },
+        ]}
+      />
+
       <StatusBar style={statusBarStyle} backgroundColor="transparent" translucent />
       <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
         {wrappedContent}
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 

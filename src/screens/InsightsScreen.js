@@ -4,14 +4,14 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { fetchActiveGoals, submitWeeklyReview } from '../api/client';
 import {
-    AppButton,
-    AppScreen,
-    Card,
-    Chip,
-    EmptyState,
-    ErrorState,
-    ProgressBar,
-    ScreenHeader,
+  AppButton,
+  AppScreen,
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  ProgressBar,
+  ScreenHeader,
 } from '../ui/components';
 import { useAppTheme } from '../ui/hooks/useAppTheme';
 
@@ -157,21 +157,20 @@ export default function InsightsScreen() {
             <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Your review is goal-specific.</Text>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {goals.map((g) => {
-                const selected = activeGoal?.plan_id === g.plan_id;
-                return (
-                  <Chip
-                    key={`goal-${g.plan_id}`}
-                    label={g.goal_summary || 'Untitled'}
-                    selected={selected}
-                    onPress={() => setActiveGoal(g)}
-                  />
-                );
-              })}
-            </View>
-          </ScrollView>
+          <View style={{ paddingTop: spacing.sm, gap: spacing.xs }}>
+            {goals.map((g) => {
+              const selected = activeGoal?.plan_id === g.plan_id;
+              return (
+                <Chip
+                  key={`goal-${g.plan_id}`}
+                  label={g.goal_summary || 'Untitled'}
+                  selected={selected}
+                  onPress={() => setActiveGoal(g)}
+                  fullWidth
+                />
+              );
+            })}
+          </View>
         </Card>
 
         <Card variant="outlined" style={{ marginTop: spacing.md }}>

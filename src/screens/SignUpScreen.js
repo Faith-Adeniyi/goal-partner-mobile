@@ -8,7 +8,8 @@ import { useAppTheme } from '../ui/hooks/useAppTheme';
 export default function SignUpScreen({ navigation }) {
   const { colors, spacing, typography } = useAppTheme();
   const { signUpUser } = useAuth();
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,21 +21,23 @@ export default function SignUpScreen({ navigation }) {
     const mismatch = submitted && password && confirmPassword && password !== confirmPassword;
 
     return {
-      fullName: submitted && !fullName.trim() ? 'Name is required.' : '',
+      firstName: submitted && !firstName.trim() ? 'First name is required.' : '',
+      lastName: submitted && !lastName.trim() ? 'Last name is required.' : '',
       email: submitted && !email.trim() ? 'Email is required.' : '',
       password: submitted && !password.trim() ? 'Password is required.' : '',
       confirmPassword: mismatch ? 'Passwords do not match.' : '',
     };
-  }, [submitted, fullName, email, password, confirmPassword]);
+  }, [submitted, firstName, lastName, email, password, confirmPassword]);
 
   const handleSignUp = async () => {
     setSubmitted(true);
-    if (!fullName.trim() || !email.trim() || !password.trim() || password !== confirmPassword) return;
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim() || password !== confirmPassword) return;
 
     setLoading(true);
     setAuthError('');
 
-    const response = await signUpUser(fullName.trim(), email.trim().toLowerCase(), password);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const response = await signUpUser(fullName, email.trim().toLowerCase(), password);
     if (!response.success) {
       setAuthError(response.error || 'Unable to create account.');
     }
@@ -57,13 +60,22 @@ export default function SignUpScreen({ navigation }) {
 
       <View style={{ gap: spacing.md }}>
         <AppInput
-          label="Full name"
+          label="First name"
           icon="person-outline"
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="Your full name"
+          value={firstName}
+          onChangeText={setFirstName}
+          placeholder="Your first name"
           autoCapitalize="words"
-          errorText={errors.fullName}
+          errorText={errors.firstName}
+        />
+        <AppInput
+          label="Last name"
+          icon="person-outline"
+          value={lastName}
+          onChangeText={setLastName}
+          placeholder="Your last name"
+          autoCapitalize="words"
+          errorText={errors.lastName}
         />
         <AppInput
           label="Email"

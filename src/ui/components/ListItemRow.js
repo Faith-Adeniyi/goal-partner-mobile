@@ -1,11 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
-import Card from './Card';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
+import Card from './Card';
 
-export default function ListItemRow({ icon, title, subtitle, trailing, style }) {
+export default function ListItemRow({ icon, title, subtitle, trailing, style, onPress }) {
   const { colors, spacing, typography, radius } = useAppTheme();
 
-  return (
+  const content = (
     <Card variant="outlined" style={[styles.card, { borderRadius: radius.lg }, style]}>
       <View style={styles.row}>
         <View style={styles.left}>
@@ -26,13 +26,23 @@ export default function ListItemRow({ icon, title, subtitle, trailing, style }) 
           <View style={styles.textWrap}>
             <Text style={[typography.label, { color: colors.text }]}>{title}</Text>
             {subtitle ? (
-              <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 2 }]}>{subtitle}</Text>
+              <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 2 }]}>
+                {subtitle}
+              </Text>
             ) : null}
           </View>
         </View>
         <View>{trailing}</View>
       </View>
     </Card>
+  );
+
+  if (!onPress) return content;
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+      {content}
+    </TouchableOpacity>
   );
 }
 
