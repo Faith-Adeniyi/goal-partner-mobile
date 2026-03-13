@@ -1,5 +1,7 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+.env
+
 # dependencies
 node_modules/
 
@@ -32,6 +34,34 @@ yarn-error.*
 
 # local env files
 .env*.local
+
+# logs
+logs/
+*.log
+
+# Expo / React Native / IDE
+.expo-shared/
+.expo/*
+!.expo/devices.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+.yarn-integrity
+
+# OS / Editor
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Testing / coverage
+coverage/
+
+# Optional: Firebase/Expo credentials (if you ever add them)
+google-services.json
+GoogleService-Info.plist
 
 # typescript
 *.tsbuildinfo
