@@ -21,13 +21,13 @@ export default function PersonalisationScreen({ navigation }) {
 
   return (
     <AppScreen scroll>
-      <ScreenHeader title="Personalisation" subtitle="Choose your theme color." leftAction={backAction} />
+      <ScreenHeader title="Personalisation" subtitle="" leftAction={backAction} />
 
       <Card variant="outlined" style={{ marginBottom: spacing.lg }}>
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
-          <Text style={[typography.h3, { color: colors.text }]}>Theme colors</Text>
+          <Text style={[typography.h3, { color: colors.text }]}>Choose Your Vibe</Text>
           <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>
-            Deep, vibrant palettes that feel premium.
+            
           </Text>
         </View>
 

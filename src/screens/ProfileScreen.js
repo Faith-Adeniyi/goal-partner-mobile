@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
+import * as secureStore from '../storage/secureStore';
 import {
   AppButton,
   AppScreen,
@@ -10,9 +11,27 @@ import {
 } from '../ui/components';
 import { useAppTheme } from '../ui/hooks/useAppTheme';
 
+const PROFILE_KEY = 'allison_profile';
+
 export default function ProfileScreen({ onSignOut, navigation }) {
   const { colors, spacing, typography, toggleTheme, isDark, radius } = useAppTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [profileData, setProfileData] = useState(null);
+
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        const storedProfile = await secureStore.getJsonItemAsync(PROFILE_KEY);
+        if (storedProfile) {
+          setProfileData(storedProfile);
+        }
+      } catch (error) {
+        console.warn('Failed to load profile data:', error);
+      }
+    };
+    
+    loadProfileData();
+  }, []);
 
   return (
     <AppScreen scroll>
@@ -33,7 +52,9 @@ export default function ProfileScreen({ onSignOut, navigation }) {
             <Text style={[typography.h3, { color: '#ffffff' }]}>FA</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[typography.h3, { color: colors.text }]}>Faith Adeniyi</Text>
+            <Text style={[typography.h3, { color: colors.text }]}>
+              {profileData?.fullName || 'User'}
+            </Text>
             <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>
               Momentum Builder
             </Text>

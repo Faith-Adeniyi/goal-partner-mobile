@@ -73,6 +73,15 @@ if (!configuredBaseUrl) {
 
 export const getActiveBaseUrl = () => activeBaseUrl;
 
+export const pingApi = async () => {
+  try {
+    const response = await requestWithFallback(() => apiClient.get('/'));
+    return toSuccess(response.data);
+  } catch (error) {
+    return toFailure(error, 'Unable to reach backend.');
+  }
+};
+
 const apiClient = axios.create({
   baseURL: activeBaseUrl,
   timeout: 30000,
@@ -100,6 +109,12 @@ const requestWithFallback = async (requestFactory) => {
     let lastError = firstError;
     for (const candidate of baseUrlCandidates) {
       if (candidate === activeBaseUrl) continue;
+
+      console.warn('[api] Network error, retrying with baseURL candidate:', {
+        from: activeBaseUrl,
+        to: candidate,
+      });
+
       setActiveBaseUrl(candidate);
 
       try {
@@ -146,15 +161,54 @@ const toFailure = (error, fallbackMessage) => {
       success: false,
       data: null,
       error: `Network Error: unable to reach API at ${activeBaseUrl}. Ensure backend is running and reachable from this device.`,
+      status: null,
+      raw: null,
+    };
+  }
+
+  const status = error?.response?.status ?? null;
+  const raw = error?.response?.data ?? null;
+  const detail = error?.response?.data?.detail;
+  const messageField = error?.response?.data?.message;
+
+  // FastAPI validation errors can come back as an array of objects:
+  // [{ type, loc, msg, input, ctx }, ...]
+  if (Array.isArray(detail)) {
+    const firstMsg = detail.find((item) => typeof item?.msg === 'string')?.msg;
+    const summarized =
+      firstMsg ||
+      detail
+        .map((item) => (typeof item?.msg === 'string' ? item.msg : null))
+        .filter(Boolean)
+        .join('\n');
+
+    return {
+      success: false,
+      data: null,
+      error: summarized || fallbackMessage,
+      status,
+      raw,
+    };
+  }
+
+  // Sometimes servers return detail as an object (also not renderable in React)
+  if (detail && typeof detail === 'object') {
+    return {
+      success: false,
+      data: null,
+      error: fallbackMessage,
+      status,
+      raw,
     };
   }
 
   const message =
-    error?.response?.data?.detail ||
-    error?.response?.data?.message ||
+    (typeof detail === 'string' ? detail : null) ||
+    (typeof messageField === 'string' ? messageField : null) ||
     error?.message ||
     fallbackMessage;
-  return { success: false, data: null, error: message };
+
+  return { success: false, data: null, error: message, status, raw };
 };
 
 export const signUp = async (fullName, email, password) => {
@@ -227,7 +281,7 @@ export const sendChatMessage = async (messageInput, goalId) => {
         };
 
   if (!normalizedPayload.message) {
-    return { success: false, data: null, error: 'Please enter a message first.' };
+    return { success: false, data: null, error: 'Please enter a message first.', status: null, raw: null };
   }
 
   try {

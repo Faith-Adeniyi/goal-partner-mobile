@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { sendChatMessage } from '../api/client';
+import { getActiveBaseUrl, pingApi, sendChatMessage } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import {
   AppButton,
   AppInput,
@@ -20,6 +21,7 @@ const generateUUID = () =>
 
 export default function ChatScreen() {
   const { colors, spacing, typography, radius } = useAppTheme();
+  const { isAuthenticated, token, user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,9 @@ export default function ChatScreen() {
   const [mode, setMode] = useState('assistant');
   const [lastSendPayload, setLastSendPayload] = useState(null);
   const [showModeHelp, setShowModeHelp] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [pingResult, setPingResult] = useState(null);
+  const [lastHttpMeta, setLastHttpMeta] = useState(null);
 
   const modeChips = [
     { id: 'assistant', label: 'Assistant' },
@@ -52,12 +57,19 @@ export default function ChatScreen() {
     setError('');
     setLastSendPayload({ text: outgoingText, mode, history });
 
+    // Default: clear HTTP meta for this attempt; we will set it after we know what happened.
+    setLastHttpMeta(null);
+
     const response = await sendChatMessage({
       message: outgoingText,
       goalId: 'general',
       mode,
       history,
     });
+
+    // Always capture status/raw (even on success) so we can debug “fallback replies” that come with HTTP 200.
+    setLastHttpMeta({ status: response?.status ?? null, raw: response?.raw ?? response?.data ?? null });
+
     setLoading(false);
 
     if (response.success) {
@@ -93,7 +105,61 @@ export default function ChatScreen() {
   return (
     <AppScreen padded={false} keyboardAware keyboardOffset={74}>
       <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
-        <ScreenHeader title="Allison" subtitle="Your AI Assistant for Planning and Execution." compact />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <ScreenHeader title="Allison" subtitle="Your AI Assistant for Planning and Execution." compact />
+          <TouchableOpacity onPress={() => setDebugOpen((prev) => !prev)} hitSlop={10}>
+            <Ionicons name="bug-outline" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+        {debugOpen ? (
+          <Card variant="outlined" style={{ marginTop: spacing.sm, borderRadius: radius.lg }}>
+            <View style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 8 }}>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
+                API: {String(getActiveBaseUrl())}
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
+                Authenticated: {isAuthenticated ? 'YES' : 'NO'}  (device)
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
+                User: {user?.email || '—'}  (device)
+              </Text>
+              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
+                Token: {token ? `${String(token).slice(0, 18)}…` : '—'}  (device)
+              </Text>
+
+              <AppButton
+                label="Ping backend (device)"
+                variant="ghost"
+                minHeight={44}
+                onPress={async () => {
+                  setPingResult('Pinging...');
+                  const res = await pingApi();
+                  if (res.success) {
+                    setPingResult(`OK: ${res.data?.status || 'online'}`);
+                  } else {
+                    setPingResult(`FAILED: ${res.error}`);
+                    setLastHttpMeta({ status: res.status ?? null, raw: res.raw ?? null });
+                  }
+                }}
+              />
+
+              {pingResult ? (
+                <Text style={[typography.bodySmall, { color: colors.textMuted }]}>{pingResult}</Text>
+              ) : null}
+
+              {lastHttpMeta ? (
+                <View style={{ gap: 4 }}>
+                  <Text style={[typography.bodySmall, { color: colors.danger }]}>
+                    Last HTTP status: {String(lastHttpMeta.status ?? '—')}
+                  </Text>
+                  <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
+                    Last response: {typeof lastHttpMeta.raw === 'string' ? lastHttpMeta.raw : JSON.stringify(lastHttpMeta.raw)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </Card>
+        ) : null}
         <Card variant="outlined" style={[styles.toolRail, { marginTop: spacing.sm, borderRadius: radius.lg }]}>
           <View style={[styles.toolRailHeader, { paddingHorizontal: spacing.md, paddingTop: spacing.sm }]}>
             <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Conversation style</Text>
@@ -201,6 +267,7 @@ export default function ChatScreen() {
           <View style={{ marginTop: spacing.sm }}>
             <Text style={[typography.bodySmall, { color: colors.danger, marginBottom: spacing.xs }]}>
               {error}
+              {lastHttpMeta?.status ? ` (HTTP ${lastHttpMeta.status})` : ''}
             </Text>
             <AppButton
               label="Try again"
