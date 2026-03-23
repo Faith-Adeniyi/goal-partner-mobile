@@ -260,7 +260,7 @@ export default function GoalDetailScreen({ route, navigation }) {
       <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
         <ScreenHeader
           title={goalData?.goal_summary || 'Goal details'}
-          subtitle={goalData?.target_date ? `Target date: ${goalData.target_date}` : 'Stay focused on the next action.'}
+          subtitle={goalData?.target_date ? `Target Date ${goalData.target_date}` : 'Execution Workspace'}
           leftAction={backAction}
           rightAction={menuAction}
         />
@@ -268,7 +268,7 @@ export default function GoalDetailScreen({ route, navigation }) {
         <SegmentedControl
           options={[
             { label: 'Checklist', value: 'checklist' },
-            { label: 'Timeline', value: 'timeline' },
+            { label: 'Clock-Map', value: 'timeline' },
           ]}
           value={viewMode}
           onChange={setViewMode}
@@ -407,7 +407,7 @@ export default function GoalDetailScreen({ route, navigation }) {
           styles.fab,
           {
             backgroundColor: colors.accent,
-            borderRadius: radius.pill,
+            borderRadius: radius.lg,
             ...elevation.high,
           },
         ]}
@@ -439,8 +439,8 @@ export default function GoalDetailScreen({ route, navigation }) {
           >
             <View style={styles.modalHeader}>
               <View style={[styles.dragHandle, { backgroundColor: colors.textMuted }]} />
-              <Text style={[typography.h3, { color: colors.text, marginTop: spacing.sm }]}>Goal Coach</Text>
-            </View>
+                <Text style={[typography.h3, { color: colors.text, marginTop: spacing.sm }]}>Allison Coach</Text>
+              </View>
 
             <View style={[styles.toolsHeaderRow, { paddingHorizontal: spacing.xl, marginBottom: spacing.sm }]}>
               <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Coach tools</Text>
@@ -496,7 +496,7 @@ export default function GoalDetailScreen({ route, navigation }) {
                   />
                   <AppButton
                     label="I'm stuck"
-                    variant="secondary"
+                    variant="tonal"
                     style={{ flex: 1 }}
                     onPress={async () => {
                       await handleDailyCheckin({

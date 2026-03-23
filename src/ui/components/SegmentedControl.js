@@ -9,10 +9,10 @@ export default function SegmentedControl({ options, value, onChange, style }) {
       style={[
         styles.container,
         {
-          borderColor: colors.border,
+          borderColor: colors.surfaceHigh,
           borderRadius: radius.lg,
           padding: spacing.xxs,
-          backgroundColor: colors.surface,
+          backgroundColor: colors.surfaceMuted,
         },
         style,
       ]}
@@ -27,12 +27,12 @@ export default function SegmentedControl({ options, value, onChange, style }) {
               styles.item,
               {
                 borderRadius: radius.md,
-                backgroundColor: isActive ? colors.accent : 'transparent',
+                backgroundColor: isActive ? colors.surface : 'transparent',
               },
             ]}
             activeOpacity={0.85}
           >
-            <Text style={[typography.label, { color: isActive ? '#ffffff' : colors.textMuted }]}>
+            <Text style={[typography.label, { color: isActive ? colors.accent : colors.textMuted }]}>
               {option.label}
             </Text>
           </TouchableOpacity>

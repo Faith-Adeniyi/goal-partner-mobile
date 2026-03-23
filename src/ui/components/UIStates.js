@@ -8,7 +8,7 @@ export function LoadingState({ label = 'Loading...' }) {
   return (
     <View style={[styles.center, { padding: spacing.xl }]}>
       <ActivityIndicator size="large" color={colors.accent} />
-      <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: spacing.sm }]}>{label}</Text>
+      <Text style={[typography.bodySmall, { color: colors.textSubtle, marginTop: spacing.sm }]}>{label}</Text>
     </View>
   );
 }
@@ -20,7 +20,7 @@ export function EmptyState({ title = 'Nothing here yet', message, actionLabel, o
     <View style={[styles.center, { padding: spacing.xl }]}>
       <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.xs }]}>{title}</Text>
       {message ? (
-        <Text style={[typography.bodySmall, { color: colors.textMuted, textAlign: 'center', marginBottom: spacing.md }]}>
+        <Text style={[typography.bodySmall, { color: colors.textSubtle, textAlign: 'center', marginBottom: spacing.md }]}>
           {message}
         </Text>
       ) : null}
@@ -42,7 +42,7 @@ export function ErrorState({
   return (
     <View style={[styles.center, { padding: spacing.xl }]}>
       <Text style={[typography.h3, { color: colors.text, marginBottom: spacing.xs }]}>{title}</Text>
-      <Text style={[typography.bodySmall, { color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg }]}>
+      <Text style={[typography.bodySmall, { color: colors.textSubtle, textAlign: 'center', marginBottom: spacing.lg }]}>
         {message}
       </Text>
       {onAction ? <AppButton label={actionLabel} variant="secondary" onPress={onAction} /> : null}

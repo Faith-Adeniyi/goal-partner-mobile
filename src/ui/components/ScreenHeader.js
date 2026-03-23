@@ -17,6 +17,7 @@ export default function ScreenHeader({
         styles.wrapper,
         {
           marginBottom: compact ? spacing.md : spacing.lg,
+          paddingTop: compact ? 0 : spacing.xs,
         },
         style,
       ]}
@@ -24,11 +25,11 @@ export default function ScreenHeader({
       <View style={styles.actionsRow}>
         <View style={styles.actionSlot}>{leftAction || <View />}</View>
         <View style={styles.titleContainer}>
-          <Text style={[styles.title, typography.h2, { color: colors.text }]} numberOfLines={1}>
+          <Text style={[styles.title, typography.h2, { color: colors.text }]} numberOfLines={2}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[styles.subtitle, typography.bodySmall, { color: colors.textMuted }]} numberOfLines={2}>
+            <Text style={[styles.subtitle, typography.label, { color: colors.textSubtle }]} numberOfLines={2}>
               {subtitle}
             </Text>
           ) : null}
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   actionSlot: {
     width: 44,
@@ -58,12 +59,13 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
   },
   title: {
-    marginBottom: 4,
+    marginBottom: 5,
+    letterSpacing: -0.45,
   },
   subtitle: {
-    lineHeight: 20,
+    textTransform: 'uppercase',
   },
 });

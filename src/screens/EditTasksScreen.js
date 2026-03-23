@@ -204,7 +204,7 @@ export default function EditTasksScreen({ route, navigation }) {
   const listHeader = (
     <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
       <ScreenHeader
-        title="Edit tasks"
+        title="Manual Plan"
         subtitle={goalData?.goal_summary || 'Goal'}
         leftAction={
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} hitSlop={8}>
@@ -214,9 +214,9 @@ export default function EditTasksScreen({ route, navigation }) {
       />
 
       <Card variant="outlined" style={{ marginTop: spacing.md }}>
-        <Text style={[typography.h3, { color: colors.text }]}>Target date</Text>
+        <Text style={[typography.h3, { color: colors.text }]}>Target Date</Text>
         <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 6 }]}>
-          Allison will auto-generate due dates from this date. You can still edit individual tasks.
+          Allison auto-generates sequencing from this date. You can still edit individual tasks.
         </Text>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md, alignItems: 'flex-end' }}>
@@ -239,7 +239,7 @@ export default function EditTasksScreen({ route, navigation }) {
               ]}
             />
           </View>
-          <AppButton label={saving ? 'Saving...' : 'Save'} onPress={saveTargetDate} disabled={saving} />
+          <AppButton label={saving ? 'Saving...' : 'Save Date'} onPress={saveTargetDate} disabled={saving} />
         </View>
       </Card>
     </View>
@@ -268,8 +268,8 @@ export default function EditTasksScreen({ route, navigation }) {
                 </View>
 
                 <AppButton
-                  label="Add task"
-                  variant="secondary"
+                  label="Add Task"
+                  variant="tonal"
                   onPress={() => handleAddTask(milestone.id)}
                   disabled={saving}
                 />
@@ -352,7 +352,7 @@ export default function EditTasksScreen({ route, navigation }) {
               },
             ]}
           >
-            <Text style={[typography.h3, { color: colors.text }]}>Edit task</Text>
+            <Text style={[typography.h3, { color: colors.text }]}>Edit Task</Text>
 
             <Text style={[typography.label, { color: colors.textMuted, marginTop: spacing.md }]}>Title</Text>
             <TextInput

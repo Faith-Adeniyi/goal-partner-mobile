@@ -30,15 +30,19 @@ export default function AppInput({
 
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={[typography.label, { color: colors.text, marginBottom: spacing.xs }]}>{label}</Text> : null}
+      {label ? (
+        <Text style={[typography.label, { color: colors.textSubtle, marginBottom: spacing.xs, textTransform: 'uppercase' }]}>
+          {label}
+        </Text>
+      ) : null}
       <View
         style={[
           styles.inputContainer,
           multiline && styles.inputContainerMultiline,
           {
-            borderColor: errorText ? colors.danger : colors.border,
+            borderColor: errorText ? colors.danger : colors.surfaceHigh,
             borderRadius: radius.lg,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.surfaceMuted,
             minHeight: resolvedMinHeight,
             paddingHorizontal: spacing.md,
           },

@@ -1,4 +1,4 @@
-﻿import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -395,7 +395,7 @@ export default function TodayScreen({ navigation }) {
         <View style={{ paddingTop: spacing.sm }}>
           <ScreenHeader
             title={greetingText}
-            subtitle="Tiny wins. Big momentum."
+            subtitle="Home Dashboard"
             compact
             rightAction={
               <TouchableOpacity
@@ -441,9 +441,9 @@ export default function TodayScreen({ navigation }) {
         >
           <View style={styles.heroRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[typography.h2, { color: colors.text }]}>Let’s go.</Text>
+              <Text style={[typography.h2, { color: colors.text }]}>Today&apos;s Discipline</Text>
               <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 6 }]}>
-                Your momentum meter updates as you stack wins.
+                Your momentum meter updates as you stack small wins.
               </Text>
             </View>
 
@@ -458,9 +458,9 @@ export default function TodayScreen({ navigation }) {
               ]}
             >
               <Text style={[typography.h3, { color: colors.text }]}>{momentum}%</Text>
-              <Text style={[typography.bodySmall, { color: colors.textMuted }]}>Momentum</Text>
+                <Text style={[typography.caption, { color: colors.textSubtle }]}>MOMENTUM</Text>
+              </View>
             </View>
-          </View>
 
           <View style={{ marginTop: spacing.md }}>
             <ProgressBar value={momentum} color={colors.accent} />
@@ -469,9 +469,9 @@ export default function TodayScreen({ navigation }) {
 
         <Card variant="outlined" style={{ marginTop: spacing.lg }}>
           <View style={styles.sectionHeader}>
-            <Text style={[typography.h3, { color: colors.text }]}>Pick a quest</Text>
+            <Text style={[typography.h3, { color: colors.text }]}>Active Goals</Text>
             <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
-              Choose the goal you want to push today.
+              Choose the goal you want to push right now.
             </Text>
           </View>
 
@@ -494,9 +494,9 @@ export default function TodayScreen({ navigation }) {
 
         <Card variant="outlined" style={{ marginTop: spacing.md }}>
           <View style={styles.sectionHeader}>
-            <Text style={[typography.h3, { color: colors.text }]}>Next best step</Text>
+            <Text style={[typography.h3, { color: colors.text }]}>Allison Check-in</Text>
             <Text style={[typography.bodySmall, { color: colors.textMuted }]}>
-              One small action that moves everything forward.
+              One focused action that moves everything forward.
             </Text>
           </View>
 
@@ -525,7 +525,7 @@ export default function TodayScreen({ navigation }) {
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md }}>
                 <AppButton
-                  label="Do it now"
+                  label="Start"
                   style={{ flex: 1 }}
                   onPress={() =>
                     navigation.navigate('Goals', { screen: 'GoalDetail', params: { planId: activeGoalId } })
@@ -533,7 +533,7 @@ export default function TodayScreen({ navigation }) {
                 />
                 <AppButton
                   label="Ask Allison"
-                  variant="secondary"
+                  variant="tonal"
                   style={{ flex: 1 }}
                   onPress={() => navigation.navigate('Allison')}
                 />
@@ -642,8 +642,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
     minWidth: 72,
     flexShrink: 0,
   },
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderWidth: 1,
-    padding: 16,
+    padding: 17,
     marginTop: 12,
   },
   heroRow: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   meter: {
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     minWidth: 108,
     alignItems: 'center',
   },

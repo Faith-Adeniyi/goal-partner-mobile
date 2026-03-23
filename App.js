@@ -60,38 +60,51 @@ function ProfileStackNavigator({ onSignOut }) {
 }
 
 function MainTabs() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { signOut } = useAuth();
 
-  const tabIcon = (name) => ({ color, size }) => (
-    <Ionicons name={name} size={size} color={color} />
+  const tabIcon = (name) => ({ color, size, focused }) => (
+    <View
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: focused ? theme.colors.accent : 'transparent',
+      }}
+    >
+      <Ionicons name={name} size={size} color={focused ? '#ffffff' : color} />
+    </View>
   );
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: isDark ? 'rgba(21, 28, 35, 0.9)' : 'rgba(248, 249, 251, 0.88)',
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
           elevation: 0,
-          height: 62,
-          paddingTop: 4,
+          height: 74,
+          paddingTop: 8,
+          paddingBottom: 10,
         },
         tabBarActiveTintColor: theme.colors.accent,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarInactiveTintColor: theme.colors.textSubtle,
       }}
     >
       <Tab.Screen
         name="Today"
         component={TodayScreen}
-        options={{ tabBarLabel: 'Today', tabBarIcon: tabIcon('flash-outline') }}
+        options={{ tabBarLabel: 'Today', tabBarIcon: tabIcon('home-outline') }}
       />
       <Tab.Screen
         name="Goals"
         component={GoalsStackNavigator}
-        options={{ tabBarLabel: 'Goals', tabBarIcon: tabIcon('flag-outline') }}
+        options={{ tabBarLabel: 'Goals', tabBarIcon: tabIcon('trophy-outline') }}
       />
       <Tab.Screen
         name="Allison"
@@ -101,11 +114,11 @@ function MainTabs() {
       <Tab.Screen
         name="Insights"
         component={InsightsScreen}
-        options={{ tabBarLabel: 'Insights', tabBarIcon: tabIcon('bar-chart-outline') }}
+        options={{ tabBarLabel: 'Insights', tabBarIcon: tabIcon('compass-outline') }}
       />
       <Tab.Screen
         name="You"
-        options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('happy-outline') }}
+        options={{ tabBarLabel: 'You', tabBarIcon: tabIcon('person-outline') }}
       >
         {(props) => <ProfileStackNavigator {...props} onSignOut={signOut} />}
       </Tab.Screen>

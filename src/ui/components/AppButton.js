@@ -12,10 +12,15 @@ const variantStyles = (colors) => ({
     borderColor: colors.border,
     textColor: colors.text,
   },
+  tonal: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentSoft,
+    textColor: colors.accent,
+  },
   ghost: {
     backgroundColor: 'transparent',
-    borderColor: colors.border,
-    textColor: colors.text,
+    borderColor: colors.surfaceHigh,
+    textColor: colors.textMuted,
   },
   danger: {
     backgroundColor: colors.danger,
@@ -50,8 +55,8 @@ export default function AppButton({
           backgroundColor: selected.backgroundColor,
           borderColor: selected.borderColor,
           borderRadius: radius.lg,
-          minHeight: minHeight ?? 48,
-          paddingHorizontal: spacing.lg,
+          minHeight: minHeight ?? 50,
+          paddingHorizontal: spacing.xl,
           opacity: isDisabled ? 0.55 : 1,
         },
         style,

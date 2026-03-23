@@ -7,14 +7,14 @@ const mapVariant = (colors, variant, selected) => {
   }
 
   if (variant === 'success') {
-    return { backgroundColor: colors.surface, borderColor: colors.success, textColor: colors.success };
+    return { backgroundColor: colors.mintSoft, borderColor: colors.mintSoft, textColor: colors.success };
   }
 
   if (variant === 'accent') {
-    return { backgroundColor: colors.accentMuted, borderColor: colors.accentMuted, textColor: colors.accent };
+    return { backgroundColor: colors.accentSoft, borderColor: colors.accentSoft, textColor: colors.accent };
   }
 
-  return { backgroundColor: colors.surface, borderColor: colors.border, textColor: colors.text };
+  return { backgroundColor: colors.surface, borderColor: colors.surfaceHigh, textColor: colors.textMuted };
 };
 
 export default function Chip({ label, onPress, selected = false, variant = 'neutral', style, textStyle, fullWidth = false }) {
@@ -30,8 +30,8 @@ export default function Chip({ label, onPress, selected = false, variant = 'neut
           backgroundColor: scheme.backgroundColor,
           borderColor: scheme.borderColor,
           borderRadius: radius.pill,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.xs,
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.xs + 1,
         },
         style,
       ]}

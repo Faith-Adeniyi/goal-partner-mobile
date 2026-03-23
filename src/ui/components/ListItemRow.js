@@ -6,7 +6,7 @@ export default function ListItemRow({ icon, title, subtitle, trailing, style, on
   const { colors, spacing, typography, radius } = useAppTheme();
 
   const content = (
-    <Card variant="outlined" style={[styles.card, { borderRadius: radius.lg }, style]}>
+    <Card variant="glass" style={[styles.card, { borderRadius: radius.lg }, style]}>
       <View style={styles.row}>
         <View style={styles.left}>
           {icon ? (
@@ -48,7 +48,7 @@ export default function ListItemRow({ icon, title, subtitle, trailing, style, on
 
 const styles = StyleSheet.create({
   card: {
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 14,
   },
   row: {

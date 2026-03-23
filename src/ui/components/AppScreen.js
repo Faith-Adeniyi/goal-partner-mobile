@@ -48,7 +48,26 @@ export default function AppScreen({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }, style]}>
-      {/* Theme background layer: palette tint + subtle grain, with overlay for readability */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.blob,
+          styles.topRightBlob,
+          {
+            backgroundColor: backgroundStyle?.tint || colors.accentSoft,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.blob,
+          styles.bottomLeftBlob,
+          {
+            backgroundColor: colors.mintSoft,
+          },
+        ]}
+      />
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: backgroundStyle?.tint || 'transparent' }]} />
       <ImageBackground
         source={require('../../../assets/noise.png')}
@@ -75,6 +94,23 @@ export default function AppScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 9999,
+    opacity: 0.65,
+  },
+  topRightBlob: {
+    width: 320,
+    height: 320,
+    right: -120,
+    top: -96,
+  },
+  bottomLeftBlob: {
+    width: 260,
+    height: 260,
+    left: -110,
+    bottom: -96,
   },
   flex: {
     flex: 1,

@@ -3,69 +3,67 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppScreen, Card, ListItemRow, ScreenHeader } from '../ui/components';
 import { useAppTheme } from '../ui/hooks/useAppTheme';
 
+const swatches = {
+  ocean: '#014390',
+  forest: '#005111',
+  ember: '#8E2A2A',
+  amethyst: '#5A3FA8',
+};
+
 export default function PersonalisationScreen({ navigation }) {
   const { colors, spacing, typography, radius, accentKey, setAccentKey } = useAppTheme();
 
   const themeOptions = [
-    { key: 'ocean', label: 'Ocean (Default)' },
-    { key: 'forest', label: 'Forest' },
-    { key: 'ember', label: 'Ember' },
-    { key: 'amethyst', label: 'Amethyst' },
+    { key: 'ocean', label: 'Ocean (Default)', subtitle: 'Deep focused blue' },
+    { key: 'forest', label: 'Forest', subtitle: 'Calm growth green' },
+    { key: 'ember', label: 'Ember', subtitle: 'Warm disciplined red' },
+    { key: 'amethyst', label: 'Amethyst', subtitle: 'Creative strategy violet' },
   ];
 
   const backAction = (
     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} hitSlop={8}>
-      <Ionicons name="arrow-back" size={24} color={colors.text} />
+      <Ionicons name="arrow-back" size={22} color={colors.accent} />
     </TouchableOpacity>
   );
 
   return (
-    <AppScreen scroll>
-      <ScreenHeader title="Personalisation" subtitle="" leftAction={backAction} />
+    <AppScreen padded={false}>
+      <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
+        <ScreenHeader title="Personalisation" subtitle="Design System Accent" leftAction={backAction} compact />
 
-      <Card variant="outlined" style={{ marginBottom: spacing.lg }}>
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+        <Card variant="glass" style={{ marginTop: spacing.md, borderRadius: radius.xl }}>
           <Text style={[typography.h3, { color: colors.text }]}>Choose Your Vibe</Text>
           <Text style={[typography.bodySmall, { color: colors.textMuted, marginTop: 4 }]}>
-            
+            Theme accents update across navigation, cards, charts, and coaching surfaces.
           </Text>
-        </View>
 
-        <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: 10 }}>
-          {themeOptions.map((opt) => {
-            const selected = accentKey === opt.key;
-            return (
-              <ListItemRow
-                key={`accent-${opt.key}`}
-                title={opt.label}
-                subtitle={selected ? 'Selected' : 'Tap to apply'}
-                icon={<Ionicons name="color-palette-outline" size={20} color={colors.accent} />}
-                onPress={async () => {
-                  await setAccentKey(opt.key);
-                }}
-                trailing={
-                  <View style={styles.trailing}>
-                    <View
-                      style={[
-                        styles.swatch,
-                        {
-                          backgroundColor: selected ? colors.accent : colors.border,
-                          borderRadius: radius.pill,
-                        },
-                      ]}
-                    />
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            {themeOptions.map((opt) => {
+              const selected = accentKey === opt.key;
+              return (
+                <ListItemRow
+                  key={`accent-${opt.key}`}
+                  title={opt.label}
+                  subtitle={opt.subtitle}
+                  icon={
+                    <View style={[styles.swatch, { backgroundColor: swatches[opt.key], borderRadius: radius.pill }]} />
+                  }
+                  onPress={async () => {
+                    await setAccentKey(opt.key);
+                  }}
+                  trailing={
                     <Ionicons
                       name={selected ? 'checkmark-circle' : 'ellipse-outline'}
                       size={20}
-                      color={selected ? colors.accent : colors.textMuted}
+                      color={selected ? colors.accent : colors.textSubtle}
                     />
-                  </View>
-                }
-              />
-            );
-          })}
-        </View>
-      </Card>
+                  }
+                />
+              );
+            })}
+          </View>
+        </Card>
+      </View>
     </AppScreen>
   );
 }
@@ -76,11 +74,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
-  },
-  trailing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   swatch: {
     width: 16,

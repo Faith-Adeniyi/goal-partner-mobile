@@ -20,6 +20,14 @@ export default function Card({ children, variant = 'default', style }) {
       };
     }
 
+    if (variant === 'glass') {
+      return {
+        backgroundColor: colors.surface,
+        borderColor: colors.surfaceHigh,
+        ...elevation.low,
+      };
+    }
+
     return {
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.border,
@@ -36,6 +44,6 @@ export default function Card({ children, variant = 'default', style }) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    padding: 16,
+    padding: 15,
   },
 });
